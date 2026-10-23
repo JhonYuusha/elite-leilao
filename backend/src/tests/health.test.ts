@@ -13,3 +13,15 @@ describe("GET /health", () => {
     });
   });
 });
+
+describe("GET /health/db", () => {
+  it("deve confirmar a conexão com o PostgreSQL", async () => {
+    const response = await request(app).get("/health/db");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      status: "ok",
+      database: "connected",
+    });
+  });
+});
