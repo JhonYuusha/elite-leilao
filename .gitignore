@@ -7,3 +7,6 @@
 !**/.env.*.example
 *.log
 .DS_Store
+
+# Prisma Client gerado
+backend/src/generated/

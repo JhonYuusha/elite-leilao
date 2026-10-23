@@ -6,3 +6,127 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum UserRole {
+  AUCTIONEER
+  BIDDER
+}
+
+enum LotStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELLED
+}
+
+enum WalletTransactionType {
+  DEPOSIT
+  BID_COMMIT
+  BID_RELEASE
+  AUCTION_DEBIT
+  AUCTION_CREDIT
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  wallet       Wallet?
+  lots         Lot[]               @relation("AuctioneerLots")
+  bids         Bid[]
+  transactions WalletTransaction[]
+}
+
+model Wallet {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  totalCents     BigInt   @default(0)
+  committedCents BigInt   @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model WalletTransaction {
+  id          String                @id @default(uuid())
+  userId      String
+  type        WalletTransactionType
+  amountCents BigInt
+  lotId       String?
+  createdAt   DateTime              @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([lotId])
+}
+
+model Lot {
+  id                String    @id @default(uuid())
+  auctioneerId      String
+  title             String
+  description       String?
+  imageUrl          String?
+  sourceApi         String
+  sourceItemId      String
+  itemSnapshot      Json
+  startingBidCents  BigInt
+  minIncrementCents BigInt
+  currentBidCents   BigInt?
+  startsAt          DateTime
+  endsAt            DateTime
+  status            LotStatus @default(SCHEDULED)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  auctioneer User        @relation("AuctioneerLots", fields: [auctioneerId], references: [id])
+  bids       Bid[]
+  settlement Settlement?
+  receipt    Receipt?
+
+  @@index([status, startsAt, endsAt])
+  @@index([auctioneerId])
+}
+
+model Bid {
+  id           String   @id @default(uuid())
+  lotId        String
+  bidderId     String
+  amountCents  BigInt
+  previousHash String?
+  hash         String
+  createdAt    DateTime @default(now())
+
+  lot    Lot  @relation(fields: [lotId], references: [id])
+  bidder User @relation(fields: [bidderId], references: [id])
+
+  @@index([lotId, createdAt])
+  @@index([bidderId])
+}
+
+model Settlement {
+  id          String   @id @default(uuid())
+  lotId       String   @unique
+  winnerId    String?
+  amountCents BigInt?
+  settledAt   DateTime @default(now())
+
+  lot Lot @relation(fields: [lotId], references: [id])
+}
+
+model Receipt {
+  id          String   @id @default(uuid())
+  lotId       String   @unique
+  publicToken String   @unique
+  winnerAlias String
+  amountCents BigInt
+  issuedAt    DateTime @default(now())
+
+  lot Lot @relation(fields: [lotId], references: [id])
+}
