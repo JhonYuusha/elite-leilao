@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import { prisma } from "./lib/prisma.js";
 import { authRoutes } from "./routes/auth.routes.js";
+import { lotRoutes } from "./routes/lot.routes.js";
 
 export const app = express();
 
@@ -14,6 +15,7 @@ app.use(cors({
 
 app.use(express.json({ limit: "1mb" }));
 app.use("/auth", authRoutes);
+app.use("/lots", lotRoutes);
 
 app.get("/health", (_req, res) => {
   res.status(200).json({
