@@ -9,6 +9,7 @@ import { productRoutes } from "./routes/product.routes.js";
 import { walletRoutes } from "./routes/wallet.routes.js";
 import { bidRoutes } from "./routes/bid.routes.js";
 import { settlementRoutes } from "./routes/settlement.routes.js";
+import { receiptRoutes } from "./routes/receipt.routes.js";
 
 export const app = express();
 
@@ -28,6 +29,7 @@ app.use("/lots", settlementRoutes);
 app.use("/lots", lotRoutes);
 app.use("/products", productRoutes);
 app.use("/wallet", walletRoutes);
+app.use("/receipts", receiptRoutes);
 
 app.get("/health", (_req, res) => {
   res.status(200).json({
