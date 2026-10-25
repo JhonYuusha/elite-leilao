@@ -1,6 +1,7 @@
 import { ArrowLeft, ArrowUpRight, Clock3, ImageOff } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
+import { AccountMenu } from "../components/AccountMenu";
 import { useLot } from "../hooks/useLot";
 import { useNow } from "../hooks/useNow";
 import type { Lot } from "../types/lot";
@@ -44,14 +45,20 @@ export function LotDetails() {
           ÁUREO<span>.</span>
         </Link>
 
-        <Link to="/#leiloes" className="header-action">
-          <ArrowLeft size={16} /> VOLTAR AO CATÁLOGO
-        </Link>
+        <div className="detail-header-actions">
+          <Link to="/#leiloes" className="header-action">
+            <ArrowLeft size={16} />
+            VOLTAR AO CATÁLOGO
+          </Link>
+
+          <AccountMenu />
+        </div>
       </header>
 
       <main className="detail-main">
         <Link to="/#leiloes" className="detail-back">
-          <ArrowLeft size={17} /> VOLTAR AOS LOTES
+          <ArrowLeft size={17} />
+          VOLTAR AOS LOTES
         </Link>
 
         {isLoading ? (

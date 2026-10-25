@@ -1,0 +1,105 @@
+.account-login,
+.account-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.account-login {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.3px;
+  text-decoration: none;
+}
+
+.account-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.account-identity > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.account-identity strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.account-identity span {
+  color: #a58b60;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.account-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.account-logout:hover,
+.account-login:hover {
+  opacity: 0.65;
+}
+
+@media (max-width: 600px) {
+  .account-menu {
+    gap: 8px;
+  }
+
+  .account-identity strong {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .account-logout {
+    padding: 8px;
+  }
+}
+
+.site-header .account-menu,
+.site-header .account-login {
+  color: #f5f2ec;
+}
+
+.site-header .account-identity strong {
+  color: #f5f2ec;
+}
+
+.site-header .account-identity span {
+  color: #c6a46c;
+}
+
+.site-header .account-logout {
+  color: #f5f2ec;
+  border-color: rgba(245, 242, 236, 0.35);
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.site-header .account-logout:hover {
+  color: #111;
+  background-color: #c6a46c;
+  border-color: #c6a46c;
+  opacity: 1;
+}

@@ -849,3 +849,19 @@
 .site-header .header-action:hover {
   color: var(--gold);
 }
+
+.detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+@media (max-width: 650px) {
+  .detail-header-actions {
+    gap: 12px;
+  }
+
+  .detail-header-actions .header-action {
+    display: none;
+  }
+}
