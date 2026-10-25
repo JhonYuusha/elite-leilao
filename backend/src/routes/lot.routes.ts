@@ -1,6 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { requireAuth, requireRole } from "../middlewares/auth.js";
+import { createLotSchema } from "../schemas/lot.schema.js";
+import {
+  createLot,
+  ExternalProductNotFoundError,
+} from "../services/lot.service.js";
+import { ExternalProductServiceError } from "../services/product.service.js";
 
 export const lotRoutes = Router();
 
@@ -20,11 +27,13 @@ const publicLotSelect = {
   createdAt: true,
 } as const;
 
-function serializeLot<T extends {
-  startingBidCents: bigint;
-  minIncrementCents: bigint;
-  currentBidCents: bigint | null;
-}>(lot: T) {
+function serializeLot<
+  T extends {
+    startingBidCents: bigint;
+    minIncrementCents: bigint;
+    currentBidCents: bigint | null;
+  },
+>(lot: T) {
   return {
     ...lot,
     startingBidCents: lot.startingBidCents.toString(),
@@ -33,6 +42,7 @@ function serializeLot<T extends {
   };
 }
 
+// GET /lots - Catálogo público de lotes
 lotRoutes.get("/", async (_req, res) => {
   try {
     const lots = await prisma.lot.findMany({
@@ -40,19 +50,27 @@ lotRoutes.get("/", async (_req, res) => {
         status: { not: "CANCELLED" },
       },
       select: publicLotSelect,
-      orderBy: { endsAt: "asc" },
+      orderBy: {
+        endsAt: "asc",
+      },
     });
 
-    res.json({
+    res.status(200).json({
       lots: lots.map(serializeLot),
     });
-  } catch {
+  } catch (error) {
+    console.error(
+      "[GET /lots] Falha interna ao consultar lotes:",
+      error,
+    );
+
     res.status(500).json({
       error: "Não foi possível consultar os lotes.",
     });
   }
 });
 
+// GET /lots/:id - Detalhes públicos de um lote
 lotRoutes.get("/:id", async (req, res) => {
   const parsed = idSchema.safeParse(req.params.id);
 
@@ -79,12 +97,88 @@ lotRoutes.get("/:id", async (req, res) => {
       return;
     }
 
-    res.json({
+    res.status(200).json({
       lot: serializeLot(lot),
     });
-  } catch {
+  } catch (error) {
+    console.error(
+      "[GET /lots/:id] Falha interna ao consultar lote:",
+      error,
+    );
+
     res.status(500).json({
       error: "Não foi possível consultar o lote.",
     });
   }
 });
+
+// POST /lots - Criação de lote por leiloeiro
+lotRoutes.post(
+  "/",
+  requireAuth,
+  requireRole("AUCTIONEER"),
+  async (req, res) => {
+    const parsed = createLotSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      res.status(400).json({
+        error: "Dados inválidos para criação do lote.",
+        details: z.flattenError(parsed.error),
+      });
+      return;
+    }
+
+    try {
+      const auctioneerId = res.locals.auth.sub;
+
+      const lot = await createLot(
+        auctioneerId,
+        parsed.data,
+      );
+
+      res.status(201).json({
+        lot,
+      });
+    } catch (error) {
+      // Produto não encontrado na API externa.
+      if (error instanceof ExternalProductNotFoundError) {
+        res.status(404).json({
+          error: error.message,
+        });
+        return;
+      }
+
+      // O encerramento precisa ocorrer no futuro.
+      if (
+        error instanceof Error &&
+        error.message === "LOT_ENDS_IN_PAST"
+      ) {
+        res.status(400).json({
+          error: "O encerramento deve ocorrer no futuro.",
+        });
+        return;
+      }
+
+      if (error instanceof ExternalProductServiceError) {
+        console.error(
+          "[POST /lots] Falha no catálogo externo:",
+          error,
+        );
+
+        res.status(502).json({
+          error: "Não foi possível consultar o catálogo externo.",
+        });
+        return;
+      }
+
+      console.error(
+        "[POST /lots] Falha interna ao criar lote:",
+        error,
+      );
+
+      res.status(500).json({
+        error: "Erro interno ao criar lote.",
+      });
+    }
+  },
+);
