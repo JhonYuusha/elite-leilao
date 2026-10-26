@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   ArrowDownRight,
@@ -8,9 +9,10 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { AccountMenu } from "../components/AccountMenu";
+import { LotCard } from "../components/LotCard";
 import { useLots } from "../hooks/useLots";
 import { useNow } from "../hooks/useNow";
-import { LotCard } from "../components/LotCard";
 
 export function Home() {
   const [search, setSearch] = useState("");
@@ -44,9 +46,13 @@ export function Home() {
           <a href="#como-funciona">COMO FUNCIONA</a>
         </nav>
 
-        <a className="header-action" href="#leiloes">
-          EXPLORAR LOTES <ArrowUpRight size={16} />
-        </a>
+        <div className="detail-header-actions">
+          <a className="header-action" href="#leiloes">
+            EXPLORAR LOTES <ArrowUpRight size={16} />
+          </a>
+
+          <AccountMenu />
+        </div>
       </header>
 
       <main>
@@ -58,7 +64,9 @@ export function Home() {
 
           <div className="hero-layout">
             <div className="hero-copy">
-              <span className="section-kicker">ABERTO PARA NOVOS LANCES</span>
+              <span className="section-kicker">
+                ABERTO PARA NOVOS LANCES
+              </span>
 
               <h1>
                 ENCONTRE.
@@ -105,7 +113,9 @@ export function Home() {
 
           <div className="hero-bottomline">
             <span>
-  {liveCount} {liveCount === 1 ? "LEILÃO AO VIVO" : "LEILÕES AO VIVO"}</span>
+              {liveCount}{" "}
+              {liveCount === 1 ? "LEILÃO AO VIVO" : "LEILÕES AO VIVO"}
+            </span>
             <span>01 / CATÁLOGO</span>
           </div>
         </section>
@@ -122,7 +132,9 @@ export function Home() {
                 ACOMPANHE AS DISPUTAS
               </span>
 
-              <h2>LOTES EM DESTAQUE<span>.</span></h2>
+              <h2>
+                LOTES EM DESTAQUE<span>.</span>
+              </h2>
             </div>
 
             <div className="catalog-heading__info">
@@ -204,7 +216,9 @@ export function Home() {
 
       <footer className="site-footer">
         <div className="footer-main">
-          <span className="footer-logo">ÁUREO<span>.</span></span>
+          <span className="footer-logo">
+            ÁUREO<span>.</span>
+          </span>
           <p>LEILÕES ONLINE. LANCES SIMULADOS.</p>
         </div>
 

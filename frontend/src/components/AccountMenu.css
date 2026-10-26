@@ -103,3 +103,35 @@
   border-color: #c6a46c;
   opacity: 1;
 }
+
+
+.account-dashboard {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 13px;
+  border: 1px solid #c6a46c;
+  color: #c6a46c;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.account-dashboard:hover {
+  background: #c6a46c;
+  color: #171a19;
+}
+
+@media (max-width: 600px) {
+  .account-dashboard {
+    padding: 10px;
+    font-size: 10px;
+  }
+}

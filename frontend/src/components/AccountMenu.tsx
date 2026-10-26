@@ -1,5 +1,11 @@
-import { LogIn, LogOut, UserRound } from "lucide-react";
+import {
+  LayoutDashboard,
+  LogIn,
+  LogOut,
+  UserRound,
+} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+
 import { useAuth } from "../hooks/useAuth";
 import "./AccountMenu.css";
 
@@ -33,10 +39,23 @@ export function AccountMenu() {
         <div>
           <strong>{user.name}</strong>
           <span>
-            {user.role === "AUCTIONEER" ? "LEILOEIRO" : "PARTICIPANTE"}
+            {user.role === "AUCTIONEER"
+              ? "LEILOEIRO"
+              : "PARTICIPANTE"}
           </span>
         </div>
       </div>
+
+      {user.role === "AUCTIONEER" && (
+        <Link
+          to="/leiloeiro"
+          className="account-dashboard"
+          title="Acessar painel do leiloeiro"
+        >
+          <LayoutDashboard size={16} />
+          PAINEL
+        </Link>
+      )}
 
       <button
         type="button"

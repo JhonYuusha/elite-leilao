@@ -1,6 +1,8 @@
+
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 
 import { AuthProvider } from "./contexts/AuthContext";
+import { AuctioneerDashboard } from "./pages/AuctioneerDashboard";
 import { Home } from "./pages/Home";
 import { Login } from "./pages/Login";
 import { LotDetails } from "./pages/LotDetails";
@@ -14,6 +16,8 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/lotes/:id" element={<LotDetails />} />
+          <Route path="/leiloeiro" element={<AuctioneerDashboard />} />
+
           <Route
             path="*"
             element={
