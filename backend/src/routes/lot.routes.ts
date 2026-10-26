@@ -7,6 +7,10 @@ import {
   createLot,
   ExternalProductNotFoundError,
 } from "../services/lot.service.js";
+import {
+  cancelLot,
+  LotCancellationError,
+} from "../services/lot-cancellation.service.js";
 import { ExternalProductServiceError } from "../services/product.service.js";
 
 export const lotRoutes = Router();
@@ -69,6 +73,60 @@ lotRoutes.get("/", async (_req, res) => {
     });
   }
 });
+
+// GET /lots/mine - Lotes do leiloeiro autenticado
+lotRoutes.get(
+  "/mine",
+  requireAuth,
+  requireRole("AUCTIONEER"),
+  async (_req, res) => {
+    try {
+      const auctioneerId = res.locals.auth.sub;
+
+      const lots = await prisma.lot.findMany({
+        where: {
+          auctioneerId,
+        },
+        select: {
+          ...publicLotSelect,
+          settlement: {
+            select: {
+              id: true,
+              winnerId: true,
+              amountCents: true,
+              settledAt: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      res.status(200).json({
+        lots: lots.map((lot) => ({
+          ...serializeLot(lot),
+          settlement: lot.settlement
+            ? {
+                ...lot.settlement,
+                amountCents:
+                  lot.settlement.amountCents?.toString() ?? null,
+              }
+            : null,
+        })),
+      });
+    } catch (error) {
+      console.error(
+        "[GET /lots/mine] Falha ao consultar lotes do leiloeiro:",
+        error,
+      );
+
+      res.status(500).json({
+        error: "Não foi possível consultar seus leilões.",
+      });
+    }
+  },
+);
 
 // GET /lots/:id - Detalhes públicos de um lote
 lotRoutes.get("/:id", async (req, res) => {
@@ -140,7 +198,6 @@ lotRoutes.post(
         lot,
       });
     } catch (error) {
-      // Produto não encontrado na API externa.
       if (error instanceof ExternalProductNotFoundError) {
         res.status(404).json({
           error: error.message,
@@ -148,7 +205,6 @@ lotRoutes.post(
         return;
       }
 
-      // O encerramento precisa ocorrer no futuro.
       if (
         error instanceof Error &&
         error.message === "LOT_ENDS_IN_PAST"
@@ -178,6 +234,48 @@ lotRoutes.post(
 
       res.status(500).json({
         error: "Erro interno ao criar lote.",
+      });
+    }
+  },
+);
+
+// PATCH /lots/:id/cancel - Cancelamento pelo leiloeiro responsável
+lotRoutes.patch(
+  "/:id/cancel",
+  requireAuth,
+  requireRole("AUCTIONEER"),
+  async (req, res) => {
+    const parsedId = idSchema.safeParse(req.params.id);
+
+    if (!parsedId.success) {
+      res.status(400).json({
+        error: "Identificador de lote inválido.",
+      });
+      return;
+    }
+
+    try {
+      const result = await cancelLot(
+        parsedId.data,
+        res.locals.auth.sub,
+      );
+
+      res.status(200).json(result);
+    } catch (error) {
+      if (error instanceof LotCancellationError) {
+        res.status(error.statusCode).json({
+          error: error.message,
+        });
+        return;
+      }
+
+      console.error(
+        "[PATCH /lots/:id/cancel] Falha ao cancelar lote:",
+        error,
+      );
+
+      res.status(500).json({
+        error: "Não foi possível cancelar o lote.",
       });
     }
   },
