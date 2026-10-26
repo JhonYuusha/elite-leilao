@@ -1,0 +1,148 @@
+
+.wallet-panel {
+  margin-top: 24px;
+  padding: 28px;
+  background: #f4f0e8;
+  border: 1px solid #e3ddd1;
+  color: #1b1b1b;
+}
+
+.wallet-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #9d8255;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+}
+
+.wallet-panel-balance {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 24px 0;
+}
+
+.wallet-panel-balance span,
+.wallet-panel-summary span,
+.wallet-panel-form label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #79756e;
+}
+
+.wallet-panel-balance strong {
+  font-size: clamp(26px, 4vw, 38px);
+  font-weight: 800;
+}
+
+.wallet-panel-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  padding: 20px 0;
+  border-top: 1px solid #ddd5c8;
+  border-bottom: 1px solid #ddd5c8;
+}
+
+.wallet-panel-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wallet-panel-summary strong {
+  font-size: 17px;
+}
+
+.wallet-panel-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.wallet-panel-deposit {
+  display: flex;
+  gap: 8px;
+}
+
+.wallet-panel-deposit input {
+  flex: 1;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid #ccc4b7;
+  background: #fff;
+  color: #1b1b1b;
+  font: inherit;
+  outline: none;
+}
+
+.wallet-panel-deposit input:focus {
+  border-color: #9d8255;
+}
+
+.wallet-panel-deposit button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 0;
+  background: #1b1b1b;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.wallet-panel-deposit button:hover:not(:disabled) {
+  background: #9d8255;
+}
+
+.wallet-panel-deposit button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.wallet-panel-message,
+.wallet-panel-note {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #77716a;
+}
+
+.wallet-panel-note {
+  margin-top: 18px;
+}
+
+.wallet-panel-error {
+  color: #a73535;
+  font-size: 12px;
+}
+
+.wallet-panel-success {
+  color: #287044;
+  font-size: 12px;
+}
+
+@media (max-width: 480px) {
+  .wallet-panel {
+    padding: 20px;
+  }
+
+  .wallet-panel-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .wallet-panel-deposit {
+    flex-direction: column;
+  }
+
+  .wallet-panel-deposit button {
+    justify-content: center;
+    padding: 14px;
+  }
+}

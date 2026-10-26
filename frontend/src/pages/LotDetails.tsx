@@ -1,7 +1,10 @@
+
 import { ArrowLeft, ArrowUpRight, Clock3, ImageOff } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { AccountMenu } from "../components/AccountMenu";
+import { BidPanel } from "../components/BidPanel";
+import { WalletPanel } from "../components/WalletPanel";
 import { useLot } from "../hooks/useLot";
 import { useNow } from "../hooks/useNow";
 import type { Lot } from "../types/lot";
@@ -107,6 +110,7 @@ export function LotDetails() {
                   <span>
                     {lot.currentBidCents ? "LANCE ATUAL" : "LANCE INICIAL"}
                   </span>
+
                   <strong>
                     {formatMoney(
                       lot.currentBidCents ?? lot.startingBidCents,
@@ -131,13 +135,20 @@ export function LotDetails() {
                   </div>
                 </div>
 
+                <WalletPanel />
+
+                <BidPanel lot={lot} />
+
                 <div className="detail-notice">
                   <Clock3 size={19} />
+
                   <p>
-                    Os lances em tempo real serão disponibilizados
-                    nesta página na próxima etapa do projeto.
-                    O prazo exibido pode ser prorrogado conforme
-                    as regras do leilão.
+                    Os lances são registrados com segurança e o saldo
+                    correspondente fica reservado na carteira do participante.
+                    Se outro usuário superar a oferta, a reserva anterior
+                    será liberada. Os valores são atualizados periodicamente,
+                    e o prazo do leilão pode ser prorrogado conforme as regras
+                    da plataforma.
                   </p>
                 </div>
 
