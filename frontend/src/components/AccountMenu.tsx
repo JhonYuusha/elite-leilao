@@ -4,19 +4,18 @@ import {
   LogOut,
   UserRound,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
+import { USER_ROLES } from "../constants/auction";
+import { ROUTES } from "../constants/routes";
 import { useAuth } from "../hooks/useAuth";
+import { useLogout } from "../hooks/useLogout";
+
 import "./AccountMenu.css";
 
 export function AccountMenu() {
-  const { user, isLoading, logout } = useAuth();
-  const navigate = useNavigate();
-
-  function handleLogout() {
-    logout();
-    navigate("/login", { replace: true });
-  }
+  const { user, isLoading } = useAuth();
+  const handleLogout = useLogout();
 
   if (isLoading) {
     return null;
@@ -24,12 +23,17 @@ export function AccountMenu() {
 
   if (!user) {
     return (
-      <Link to="/login" className="account-login">
+      <Link
+        to={ROUTES.LOGIN}
+        className="account-login"
+      >
         <LogIn size={16} />
         ENTRAR
       </Link>
     );
   }
+
+  const isAuctioneer = user.role === USER_ROLES.AUCTIONEER;
 
   return (
     <div className="account-menu">
@@ -39,16 +43,16 @@ export function AccountMenu() {
         <div>
           <strong>{user.name}</strong>
           <span>
-            {user.role === "AUCTIONEER"
+            {isAuctioneer
               ? "LEILOEIRO"
               : "PARTICIPANTE"}
           </span>
         </div>
       </div>
 
-      {user.role === "AUCTIONEER" && (
+      {isAuctioneer && (
         <Link
-          to="/leiloeiro"
+          to={ROUTES.AUCTIONEER_DASHBOARD}
           className="account-dashboard"
           title="Acessar painel do leiloeiro"
         >

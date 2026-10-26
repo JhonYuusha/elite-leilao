@@ -1,41 +1,16 @@
-
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { ArrowUpRight, Wallet as WalletIcon } from "lucide-react";
 
+import { USER_ROLES } from "../constants/auction";
 import { useAuth } from "../hooks/useAuth";
 import { useWallet } from "../hooks/useWallet";
 import { api } from "../lib/api";
+import { formatCents, toCents } from "../utils/money";
+
 import "./WalletPanel.css";
-
-function formatMoney(cents: string) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(Number(cents) / 100);
-}
-
-function parseMoney(value: string): string | null {
-  const normalized = value.trim();
-
-  if (!/^\d+(?:[.,]\d{1,2})?$/.test(normalized)) {
-    return null;
-  }
-
-  const [reais, centavos = ""] = normalized.replace(",", ".").split(".");
-
-  const amountCents =
-    BigInt(reais) * 100n +
-    BigInt(centavos.padEnd(2, "0"));
-
-  if (amountCents <= 0n || amountCents > 9223372036854775807n) {
-    return null;
-  }
-
-  return amountCents.toString();
-}
 
 export function WalletPanel() {
   const { user } = useAuth();
@@ -50,6 +25,7 @@ export function WalletPanel() {
     mutationFn: async (amountCents: string) => {
       await api.post("/wallet/deposits", { amountCents });
     },
+
     onSuccess: async () => {
       setAmount("");
       setError("");
@@ -59,6 +35,7 @@ export function WalletPanel() {
         queryKey: ["wallet", user?.id],
       });
     },
+
     onError: (err) => {
       setSuccess("");
 
@@ -82,17 +59,31 @@ export function WalletPanel() {
     setError("");
     setSuccess("");
 
-    const amountCents = parseMoney(amount);
+    const amountCents = toCents(amount);
 
-    if (!amountCents) {
-      setError("Informe um valor positivo válido, com até duas casas decimais.");
+    if (amountCents === null) {
+      setError(
+        "Informe um valor positivo válido, com até duas casas decimais.",
+      );
+      return;
+    }
+
+    const amountBigInt = BigInt(amountCents);
+
+    if (
+      amountBigInt <= 0n ||
+      amountBigInt > 9223372036854775807n
+    ) {
+      setError(
+        "Informe um valor positivo válido, com até duas casas decimais.",
+      );
       return;
     }
 
     depositMutation.mutate(amountCents);
   }
 
-  if (!user || user.role !== "BIDDER") {
+  if (!user || user.role !== USER_ROLES.BIDDER) {
     return null;
   }
 
@@ -104,11 +95,22 @@ export function WalletPanel() {
       </div>
 
       {isLoading ? (
-        <p className="wallet-panel-message">CONSULTANDO SALDO...</p>
+        <p className="wallet-panel-message">
+          CONSULTANDO SALDO...
+        </p>
       ) : isError || !wallet ? (
-        <div className="wallet-panel-message" role="alert">
-          <p>Não foi possível consultar sua carteira.</p>
-          <button type="button" onClick={() => void refetch()}>
+        <div
+          className="wallet-panel-message"
+          role="alert"
+        >
+          <p>
+            Não foi possível consultar sua carteira.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => void refetch()}
+          >
             TENTAR NOVAMENTE
           </button>
         </div>
@@ -116,25 +118,36 @@ export function WalletPanel() {
         <>
           <div className="wallet-panel-balance">
             <span>SALDO DISPONÍVEL</span>
-            <strong>{formatMoney(wallet.availableCents)}</strong>
+            <strong>
+              {formatCents(wallet.availableCents)}
+            </strong>
           </div>
 
           <div className="wallet-panel-summary">
             <div>
               <span>SALDO TOTAL</span>
-              <strong>{formatMoney(wallet.totalCents)}</strong>
+              <strong>
+                {formatCents(wallet.totalCents)}
+              </strong>
             </div>
 
             <div>
               <span>RESERVADO EM LANCES</span>
-              <strong>{formatMoney(wallet.committedCents)}</strong>
+              <strong>
+                {formatCents(wallet.committedCents)}
+              </strong>
             </div>
           </div>
         </>
       )}
 
-      <form className="wallet-panel-form" onSubmit={handleDeposit}>
-        <label htmlFor="deposit-amount">ADICIONAR SALDO SIMULADO (R$)</label>
+      <form
+        className="wallet-panel-form"
+        onSubmit={handleDeposit}
+      >
+        <label htmlFor="deposit-amount">
+          ADICIONAR SALDO SIMULADO (R$)
+        </label>
 
         <div className="wallet-panel-deposit">
           <input
@@ -152,17 +165,30 @@ export function WalletPanel() {
             type="submit"
             disabled={depositMutation.isPending}
           >
-            {depositMutation.isPending ? "..." : "DEPOSITAR"}
+            {depositMutation.isPending
+              ? "..."
+              : "DEPOSITAR"}
+
             <ArrowUpRight size={16} />
           </button>
         </div>
 
         {error && (
-          <p className="wallet-panel-error" role="alert">{error}</p>
+          <p
+            className="wallet-panel-error"
+            role="alert"
+          >
+            {error}
+          </p>
         )}
 
         {success && (
-          <p className="wallet-panel-success" role="status">{success}</p>
+          <p
+            className="wallet-panel-success"
+            role="status"
+          >
+            {success}
+          </p>
         )}
       </form>
 

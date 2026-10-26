@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -6,18 +5,15 @@ import axios from "axios";
 import { ArrowUpRight, Gavel } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { LOT_STATUS, USER_ROLES } from "../constants/auction";
+import { ROUTES, lotDetailsPath } from "../constants/routes";
 import { useAuth } from "../hooks/useAuth";
 import { useNow } from "../hooks/useNow";
 import { api } from "../lib/api";
 import type { Lot } from "../types/lot";
-import "./BidPanel.css";
+import { formatCents, toCents } from "../utils/money";
 
-function formatMoney(cents: bigint): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(Number(cents) / 100);
-}
+import "./BidPanel.css";
 
 export function BidPanel({ lot }: { lot: Lot }) {
   const { user } = useAuth();
@@ -37,7 +33,7 @@ export function BidPanel({ lot }: { lot: Lot }) {
     : currentBid + BigInt(lot.minIncrementCents);
 
   const isLive =
-    lot.status === "LIVE" &&
+    lot.status === LOT_STATUS.LIVE &&
     now !== null &&
     now >= new Date(lot.startsAt).getTime() &&
     now < new Date(lot.endsAt).getTime();
@@ -50,17 +46,25 @@ export function BidPanel({ lot }: { lot: Lot }) {
 
       return data;
     },
+
     onSuccess: async () => {
       setAmount("");
       setError("");
       setSuccess("Lance registrado com sucesso!");
 
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["lot", lot.id] }),
-        queryClient.invalidateQueries({ queryKey: ["lots"] }),
-        queryClient.invalidateQueries({ queryKey: ["wallet"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["lot", lot.id],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["lots"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["wallet"],
+        }),
       ]);
     },
+
     onError: (err) => {
       setSuccess("");
 
@@ -93,31 +97,30 @@ export function BidPanel({ lot }: { lot: Lot }) {
       return;
     }
 
-    if (!/^\d+(?:[.,]\d{1,2})?$/.test(amount.trim())) {
-      setError("Informe um valor válido, com até duas casas decimais.");
+    const amountCents = toCents(amount);
+
+    if (amountCents === null) {
+      setError(
+        "Informe um valor válido, com até duas casas decimais.",
+      );
       return;
     }
 
-    const [reais, centavos = ""] = amount
-      .trim()
-      .replace(",", ".")
-      .split(".");
+    const amountBigInt = BigInt(amountCents);
 
-    const amountCents =
-      BigInt(reais) * 100n +
-      BigInt(centavos.padEnd(2, "0"));
-
-    if (amountCents < minimumBid) {
-      setError(`O lance mínimo é ${formatMoney(minimumBid)}.`);
+    if (amountBigInt < minimumBid) {
+      setError(
+        `O lance mínimo é ${formatCents(minimumBid.toString())}.`,
+      );
       return;
     }
 
-    if (amountCents > 9223372036854775807n) {
+    if (amountBigInt > 9223372036854775807n) {
       setError("O valor informado ultrapassa o limite permitido.");
       return;
     }
 
-    mutation.mutate(amountCents.toString());
+    mutation.mutate(amountCents);
   }
 
   return (
@@ -129,7 +132,9 @@ export function BidPanel({ lot }: { lot: Lot }) {
 
       <div className="bid-panel-minimum">
         <span>PRÓXIMO LANCE MÍNIMO</span>
-        <strong>{formatMoney(minimumBid)}</strong>
+        <strong>
+          {formatCents(minimumBid.toString())}
+        </strong>
       </div>
 
       {!isLive ? (
@@ -138,17 +143,19 @@ export function BidPanel({ lot }: { lot: Lot }) {
         </p>
       ) : !user ? (
         <div className="bid-panel-access">
-          <p>Entre na sua conta para participar deste leilão.</p>
+          <p>
+            Entre na sua conta para participar deste leilão.
+          </p>
 
           <Link
-            to="/login"
-            state={{ from: `/lotes/${lot.id}` }}
+            to={ROUTES.LOGIN}
+            state={{ from: lotDetailsPath(lot.id) }}
           >
             ENTRAR PARA DAR UM LANCE
             <ArrowUpRight size={17} />
           </Link>
         </div>
-      ) : user.role !== "BIDDER" ? (
+      ) : user.role !== USER_ROLES.BIDDER ? (
         <p className="bid-panel-message">
           Contas de leiloeiro não podem participar das disputas.
         </p>

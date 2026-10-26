@@ -299,3 +299,437 @@
     flex-direction: column;
   }
 }
+
+/* Título da seção de criação */
+.auctioneer-create-heading {
+  margin: 65px 0 35px;
+}
+
+.auctioneer-create-heading h2 {
+  margin: 12px 0 18px;
+  font-size: clamp(40px, 6vw, 72px);
+  line-height: 1;
+  letter-spacing: -2px;
+}
+
+.auctioneer-create-heading h2 span {
+  color: #b99b6b;
+}
+
+/* Gerenciamento administrativo dos lotes */
+.auctioneer-management {
+  margin-bottom: 76px;
+}
+
+.auctioneer-management-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+
+.auctioneer-management-heading h2 {
+  margin: 12px 0;
+  font-size: clamp(30px, 4vw, 52px);
+  letter-spacing: -1.5px;
+}
+
+.auctioneer-management-heading h2 span {
+  color: #b99b6b;
+}
+
+.auctioneer-management-heading p {
+  margin: 0;
+  color: #77716a;
+  line-height: 1.6;
+}
+
+.auctioneer-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 16px;
+  border: 1px solid #d8d3c9;
+  background: transparent;
+  color: #1b1b1b;
+  font-weight: 800;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.auctioneer-refresh:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* Indicadores financeiros */
+.auctioneer-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin-bottom: 28px;
+  background: #e7e2d8;
+  border: 1px solid #e7e2d8;
+}
+
+.auctioneer-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 25px;
+  background: #fff;
+}
+
+.auctioneer-stats span,
+.auctioneer-lot-values span {
+  color: #77716a;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.auctioneer-stats strong {
+  font-size: clamp(20px, 2.5vw, 34px);
+  letter-spacing: -1px;
+  overflow-wrap: anywhere;
+}
+
+/* Filtros */
+.auctioneer-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.auctioneer-filters button {
+  padding: 11px 15px;
+  border: 1px solid #ddd8ce;
+  background: transparent;
+  color: #6f6b64;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+
+.auctioneer-filters button:hover {
+  border-color: #1b1b1b;
+}
+
+.auctioneer-filters button.active {
+  background: #1b1b1b;
+  border-color: #1b1b1b;
+  color: #fff;
+}
+
+/* Carregamento, erros e estados vazios */
+.auctioneer-management-message {
+  padding: 32px;
+  background: #fff;
+  border: 1px solid #e7e2d8;
+  color: #77716a;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.auctioneer-management-message button {
+  display: block;
+  margin-top: 16px;
+  padding: 10px 15px;
+  border: 0;
+  background: #1b1b1b;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* Lista de lotes */
+.auctioneer-lot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.auctioneer-lot-card {
+  min-width: 0;
+  background: #fff;
+  border: 1px solid #e7e2d8;
+}
+
+.auctioneer-lot-image {
+  display: grid;
+  place-items: center;
+  height: 190px;
+  background: #eae6df;
+  color: #999185;
+  overflow: hidden;
+}
+
+.auctioneer-lot-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.auctioneer-lot-content {
+  padding: 23px;
+}
+
+.auctioneer-lot-status {
+  display: inline-block;
+  padding: 7px 9px;
+  background: #eeeae2;
+  color: #716b60;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+}
+
+.auctioneer-lot-status.status-live {
+  background: #e5eee5;
+  color: #346c40;
+}
+
+.auctioneer-lot-status.status-cancelled {
+  background: #f6e9e7;
+  color: #a4473d;
+}
+
+.auctioneer-lot-status.status-scheduled {
+  background: #f3ebdb;
+  color: #8b6b35;
+}
+
+.auctioneer-lot-status.status-ended {
+  background: #e8e8e8;
+  color: #666;
+}
+
+.auctioneer-lot-content h3 {
+  margin: 14px 0 22px;
+  font-size: 19px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.auctioneer-lot-values {
+  display: grid;
+  gap: 13px;
+}
+
+.auctioneer-lot-values > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.auctioneer-lot-values strong {
+  font-size: 14px;
+}
+
+.auctioneer-lot-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 0;
+  color: #346c40;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+/* Ações administrativas */
+.auctioneer-lot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+  padding-top: 17px;
+  border-top: 1px solid #e7e2d8;
+}
+
+.auctioneer-lot-actions a,
+.auctioneer-lot-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 11px 12px;
+  border: 1px solid #ded8ce;
+  background: #f8f7f4;
+  color: #1b1b1b;
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.auctioneer-lot-actions a:hover,
+.auctioneer-lot-actions button:hover:not(:disabled) {
+  border-color: #b99b6b;
+  background: #f3ede3;
+}
+
+.auctioneer-lot-actions button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* Responsividade */
+@media (max-width: 1050px) {
+  .auctioneer-lot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .auctioneer-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .auctioneer-lot-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auctioneer-management-heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .auctioneer-stats > div {
+    padding: 17px;
+  }
+
+  .auctioneer-stats strong {
+    font-size: 21px;
+  }
+
+  .auctioneer-lot-content {
+    padding: 18px;
+  }
+}
+
+/* Modal de confirmação */
+.auctioneer-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(17, 17, 17, 0.72);
+  backdrop-filter: blur(5px);
+}
+
+.auctioneer-modal {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  box-sizing: border-box;
+  padding: clamp(24px, 5vw, 42px);
+  background: #f8f7f4;
+  border: 1px solid #b99b6b;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25);
+}
+
+.auctioneer-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  border: 0;
+  background: transparent;
+  color: #77716a;
+  cursor: pointer;
+}
+
+.auctioneer-modal-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 24px;
+  background: #eae2d3;
+  color: #9a7948;
+}
+
+.auctioneer-modal h2 {
+  margin: 12px 0 18px;
+  font-size: clamp(28px, 5vw, 38px);
+  letter-spacing: -1px;
+}
+
+.auctioneer-modal > p {
+  color: #77716a;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.auctioneer-modal-lot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 25px 0;
+  padding: 20px;
+  border-left: 3px solid #b99b6b;
+  background: #efebe4;
+}
+
+.auctioneer-modal-lot span {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #77716a;
+}
+
+.auctioneer-modal-lot strong {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.auctioneer-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 10px;
+}
+
+.auctioneer-modal-actions button {
+  min-height: 52px;
+  padding: 12px;
+  border: 0;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+
+.auctioneer-modal-back {
+  background: #e7e2d8;
+  color: #1b1b1b;
+}
+
+.auctioneer-modal-confirm {
+  background: #b99b6b;
+  color: #1b1b1b;
+}
+
+.auctioneer-modal-confirm.danger {
+  background: #a4473d;
+  color: #fff;
+}
+
+.auctioneer-modal-actions button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+@media (max-width: 480px) {
+  .auctioneer-modal-actions {
+    grid-template-columns: 1fr;
+  }
+}

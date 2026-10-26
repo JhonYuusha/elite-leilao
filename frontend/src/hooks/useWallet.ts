@@ -1,8 +1,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { useAuth } from "./useAuth";
+import { USER_ROLES } from "../constants/auction";
 import { api } from "../lib/api";
+import { useAuth } from "./useAuth";
 
 export interface Wallet {
   totalCents: string;
@@ -19,11 +20,14 @@ export function useWallet() {
 
   return useQuery({
     queryKey: ["wallet", user?.id],
-    enabled: !isLoading && user?.role === "BIDDER",
+    enabled: !isLoading && user?.role === USER_ROLES.BIDDER,
+
     queryFn: async () => {
       const { data } = await api.get<WalletResponse>("/wallet");
+
       return data.wallet;
     },
+
     refetchInterval: 15000,
   });
 }
