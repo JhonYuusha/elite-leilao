@@ -235,3 +235,27 @@
 .login-form button[type="submit"]:not(:disabled):active {
   transform: translateY(0);
 }
+
+.login-form button.login-submit-loading {
+  background: #211d17;
+  color: #f0dfbd;
+  cursor: progress;
+}
+
+.login-form button.login-submit-loading .aureo-loader {
+  flex-shrink: 0;
+}
+
+.login-form input:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.demo-account:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.login-form button[type="submit"] {
+  gap: 16px;
+}

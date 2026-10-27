@@ -2,9 +2,16 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import axios from "axios";
 import { ArrowLeft, ArrowRight, LockKeyhole } from "lucide-react";
-import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import {
+  Link,
+  Navigate,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
+import { AureoLoader } from "../components/AureoLoader";
 import { useAuth } from "../hooks/useAuth";
+
 import "./Login.css";
 
 const demoAccounts = [
@@ -26,7 +33,7 @@ const demoAccounts = [
 ];
 
 export function Login() {
-  const { user, isLoading, login } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -43,6 +50,8 @@ export function Login() {
       : "/";
 
   function selectDemoAccount(accountEmail: string) {
+    if (isSubmitting) return;
+
     setEmail(accountEmail);
     setPassword("Demo@123456");
     setError("");
@@ -50,6 +59,9 @@ export function Login() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (isSubmitting) return;
+
     setError("");
     setIsSubmitting(true);
 
@@ -73,10 +85,6 @@ export function Login() {
     }
   }
 
-  if (isLoading) {
-    return <div className="login-loading">VERIFICANDO SESSÃO...</div>;
-  }
-
   if (user) {
     return <Navigate to={destination} replace />;
   }
@@ -96,7 +104,9 @@ export function Login() {
 
       <main className="login-main">
         <div className="login-intro">
-          <span className="login-kicker">ACESSO EXCLUSIVO / ÁUREO</span>
+          <span className="login-kicker">
+            ACESSO EXCLUSIVO / ÁUREO
+          </span>
 
           <h1>
             SUA PRÓXIMA
@@ -115,6 +125,7 @@ export function Login() {
                 key={account.email}
                 type="button"
                 className="demo-account"
+                disabled={isSubmitting}
                 onClick={() => selectDemoAccount(account.email)}
               >
                 <span>
@@ -128,7 +139,11 @@ export function Login() {
           </div>
         </div>
 
-        <form className="login-form" onSubmit={handleSubmit}>
+        <form
+          className="login-form"
+          onSubmit={handleSubmit}
+          aria-busy={isSubmitting}
+        >
           <div className="login-form-heading">
             <LockKeyhole size={22} />
             <h2>ENTRAR NA PLATAFORMA</h2>
@@ -142,6 +157,7 @@ export function Login() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="seu@email.com"
+            disabled={isSubmitting}
             required
           />
 
@@ -153,6 +169,7 @@ export function Login() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Sua senha"
+            disabled={isSubmitting}
             required
           />
 
@@ -162,9 +179,22 @@ export function Login() {
             </p>
           )}
 
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "AUTENTICANDO..." : "ACESSAR MINHA CONTA"}
-            <ArrowRight size={19} />
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className={isSubmitting ? "login-submit-loading" : ""}
+          >
+            {isSubmitting ? (
+              <>
+                <span>AUTENTICANDO...</span>
+                <AureoLoader compact />
+              </>
+            ) : (
+              <>
+                <span>ACESSAR MINHA CONTA</span>
+                <ArrowRight size={19} />
+              </>
+            )}
           </button>
 
           <p className="login-footnote">
