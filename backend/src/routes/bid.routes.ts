@@ -2,7 +2,10 @@ import { Router } from "express";
 import { z } from "zod";
 
 import { requireAuth, requireRole } from "../middlewares/auth.js";
-import { publishLotUpdated } from "../realtime/socket.js";
+import {
+  publishLotUpdated,
+  publishWalletUpdated,
+} from "../realtime/socket.js";
 import { createBidSchema } from "../schemas/bid.schema.js";
 import { BidError, placeBid } from "../services/bid.service.js";
 
@@ -56,20 +59,29 @@ bidRoutes.post(
       return;
     }
 
+    // Este campo é interno: não faz parte da resposta HTTP.
+    const { affectedWalletUserIds, ...response } = result;
+
     // A transação já foi confirmada neste ponto.
-    // Uma falha de comunicação não deve desfazer o lance.
+    // Falhas no Socket.IO não devem desfazer o lance.
     try {
       publishLotUpdated({
-        lotId: result.lot.id,
-        currentBidCents: result.lot.currentBidCents,
-        endsAt: new Date(result.lot.endsAt).toISOString(),
-        status: result.lot.status,
-        extended: result.lot.extended,
+        lotId: response.lot.id,
+        currentBidCents: response.lot.currentBidCents,
+        endsAt: new Date(response.lot.endsAt).toISOString(),
+        status: response.lot.status,
+        extended: response.lot.extended,
       });
     } catch (error) {
-      console.error("[Socket.IO] Falha ao publicar lance:", error);
+      console.error("[Socket.IO] Falha ao publicar lote:", error);
     }
 
-    res.status(201).json(result);
+    try {
+      publishWalletUpdated(affectedWalletUserIds);
+    } catch (error) {
+      console.error("[Socket.IO] Falha ao publicar carteiras:", error);
+    }
+
+    res.status(201).json(response);
   },
 );

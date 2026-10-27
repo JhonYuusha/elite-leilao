@@ -90,6 +90,8 @@ export async function placeBid(
         );
       }
 
+      // Participantes cujas carteiras serão alteradas pelo lance.
+      // Também serão notificados após a confirmação da transação.
       const walletUserIds = [
         bidderId,
         ...(previousBid ? [previousBid.bidderId] : []),
@@ -131,7 +133,9 @@ export async function placeBid(
       const acceptedAt = clock[0]?.now;
 
       if (!acceptedAt) {
-        throw new Error("Não foi possível consultar o relógio do banco.");
+        throw new Error(
+          "Não foi possível consultar o relógio do banco.",
+        );
       }
 
       if (
@@ -177,6 +181,7 @@ export async function placeBid(
           );
         }
 
+        // Libera o valor reservado pelo líder anterior.
         await tx.wallet.update({
           where: { id: previousWallet.id },
           data: {
@@ -196,6 +201,7 @@ export async function placeBid(
         });
       }
 
+      // Reserva o valor do novo lance.
       await tx.wallet.update({
         where: { id: bidderWallet.id },
         data: {
@@ -260,6 +266,10 @@ export async function placeBid(
       });
 
       return {
+        // Metadado interno utilizado para notificações privadas.
+        // A rota HTTP deve remover este campo da resposta pública.
+        affectedWalletUserIds: walletUserIds,
+
         bid: {
           id: bid.id,
           lotId: bid.lotId,
@@ -269,6 +279,7 @@ export async function placeBid(
           hash: bid.hash,
           createdAt: bid.createdAt,
         },
+
         lot: {
           id: lotId,
           currentBidCents: amountCents.toString(),

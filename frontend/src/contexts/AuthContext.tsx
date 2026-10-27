@@ -1,9 +1,9 @@
-
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { api, TOKEN_KEY } from "../lib/api";
+import { socket, synchronizeSocketAuth } from "../lib/socket";
 import type { AuthUser, LoginResponse, MeResponse } from "../types/auth";
 import { AuthContext } from "./auth-context";
 
@@ -17,6 +17,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
     sessionStorage.removeItem(TOKEN_KEY);
     setUser(null);
+
+    synchronizeSocketAuth();
   }, [queryClient]);
 
   useEffect(() => {
@@ -26,7 +28,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = sessionStorage.getItem(TOKEN_KEY);
 
       if (!token) {
-        if (active) setIsLoading(false);
+        if (active) {
+          setIsLoading(false);
+        }
         return;
       }
 
@@ -43,7 +47,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
         }
       } finally {
-        if (active) setIsLoading(false);
+        if (active) {
+          setIsLoading(false);
+        }
       }
     }
 
@@ -54,16 +60,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [queryClient]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const { data } = await api.post<LoginResponse>("/auth/login", {
-      email,
-      password,
-    });
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
 
-    queryClient.clear();
-    sessionStorage.setItem(TOKEN_KEY, data.accessToken);
-    setUser(data.user);
-  }, [queryClient]);
+    synchronizeSocketAuth();
+  }, [isLoading]);
+
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const { data } = await api.post<LoginResponse>("/auth/login", {
+        email,
+        password,
+      });
+
+      queryClient.clear();
+      sessionStorage.setItem(TOKEN_KEY, data.accessToken);
+      setUser(data.user);
+
+      synchronizeSocketAuth();
+    },
+    [queryClient],
+  );
+
+  // Desconecta a sessão Socket.IO quando o provedor é desmontado.
+  useEffect(() => {
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, isLoading, login, logout }}>
