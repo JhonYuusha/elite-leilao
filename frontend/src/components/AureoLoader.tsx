@@ -1,4 +1,4 @@
-import "./AureoLoader.css";
+import "../styles/components/AureoLoader.css";
 
 interface AureoLoaderProps {
   compact?: boolean;

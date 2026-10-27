@@ -6,7 +6,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "./hooks/useAuth";
 import { useMinimumLoading } from "./hooks/useMinimumLoading";
 
-import "./App.css";
+import "./styles/global/App.css";
 
 function AppContent() {
   const { isLoading } = useAuth();

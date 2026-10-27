@@ -13,7 +13,7 @@ import { api } from "../lib/api";
 import type { Lot } from "../types/lot";
 import { formatCents, toCents } from "../utils/money";
 
-import "./BidPanel.css";
+import "../styles/components/BidPanel.css";
 
 export function BidPanel({ lot }: { lot: Lot }) {
   const { user } = useAuth();

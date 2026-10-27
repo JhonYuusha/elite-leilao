@@ -9,7 +9,7 @@ import { USER_ROLES } from "../constants/auction";
 import { ROUTES } from "../constants/routes";
 import { useAuth } from "../hooks/useAuth";
 
-import "./AuctioneerDashboard.css";
+import "../styles/pages/AuctioneerDashboard.css";
 
 export function AuctioneerDashboard() {
   const { user, isLoading } = useAuth();

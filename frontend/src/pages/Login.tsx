@@ -12,7 +12,7 @@ import {
 import { AureoLoader } from "../components/AureoLoader";
 import { useAuth } from "../hooks/useAuth";
 
-import "./Login.css";
+import "../styles/pages/Login.css";
 
 const demoAccounts = [
   {

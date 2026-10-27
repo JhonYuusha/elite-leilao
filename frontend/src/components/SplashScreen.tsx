@@ -1,5 +1,5 @@
 import { AureoLoader } from "./AureoLoader";
-import "./SplashScreen.css";
+import "../styles/components/SplashScreen.css";
 
 export function SplashScreen() {
   return (

@@ -11,7 +11,7 @@ import { ROUTES } from "../constants/routes";
 import { useAuth } from "../hooks/useAuth";
 import { useLogout } from "../hooks/useLogout";
 
-import "./AccountMenu.css";
+import "../styles/components/AccountMenu.css";
 
 export function AccountMenu() {
   const { user, isLoading } = useAuth();

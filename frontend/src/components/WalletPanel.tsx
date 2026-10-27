@@ -10,7 +10,7 @@ import { useWallet } from "../hooks/useWallet";
 import { api } from "../lib/api";
 import { formatCents, toCents } from "../utils/money";
 
-import "./WalletPanel.css";
+import "../styles/components/WalletPanel.css";
 
 export function WalletPanel() {
   const { user } = useAuth();
