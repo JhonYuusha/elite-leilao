@@ -1,4 +1,3 @@
-
 import { ArrowLeft, ArrowUpRight, Clock3, ImageOff } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
@@ -7,6 +6,7 @@ import { BidPanel } from "../components/BidPanel";
 import { WalletPanel } from "../components/WalletPanel";
 import { useLot } from "../hooks/useLot";
 import { useNow } from "../hooks/useNow";
+import { useRealtimeLots } from "../hooks/useRealtimeLots";
 import type { Lot } from "../types/lot";
 
 function formatMoney(cents: string): string {
@@ -38,6 +38,10 @@ function formatDate(date: string) {
 
 export function LotDetails() {
   const { id } = useParams<{ id: string }>();
+
+  // Inscreve o cliente nas atualizações em tempo real deste lote.
+  useRealtimeLots(id);
+
   const { data: lot, isLoading, isError, refetch } = useLot(id);
   const now = useNow();
 
@@ -103,7 +107,8 @@ export function LotDetails() {
                 <h1>{lot.title}</h1>
 
                 <p className="detail-description">
-                  {lot.description || "Este lote não possui descrição adicional."}
+                  {lot.description ||
+                    "Este lote não possui descrição adicional."}
                 </p>
 
                 <div className="detail-price">
