@@ -2,10 +2,9 @@
 
 **Versão documental:** 1.0
 **Última revisão:** 28/10/2026
+**Desenvolvedor:** João Victor
 **Status:** Implementação local validada; implantação pública pendente
 **Projeto:** ÁUREO — Plataforma de Leilões Online
-**Desenvolvimento:** João Victor
-**Apoio na análise técnica:** Kauã
 
 ## 1. Visão geral
 

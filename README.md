@@ -374,8 +374,6 @@ As implementações foram submetidas à revisão humana e às verificações dis
 
 ## Equipe
 
-**Desenvolvimento:** João Victor
-**Apoio na análise técnica:** Kauã
 
 ---
 

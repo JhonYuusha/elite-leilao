@@ -3,14 +3,13 @@
 **Projeto:** ÁUREO — Plataforma de Leilões Online
 **Última revisão:** 28/10/2026
 **Desenvolvimento:** João Victor
-**Apoio na análise técnica:** Kauã
 **Status geral:** Implementação local validada; implantação pública pendente.
 
 Este documento registra as decisões arquiteturais adotadas no ÁUREO, suas justificativas, garantias, limitações e oportunidades de evolução.
 
 Os status representam o estado da implementação em 28/10/2026, considerando o código da branch `main` e as validações executadas.
 
----
+---dis
 
 ## ADR-001 — Arquitetura e separação de responsabilidades
 
