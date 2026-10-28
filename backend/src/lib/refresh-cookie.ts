@@ -10,7 +10,9 @@ function getCookieOptions() {
   return {
     httpOnly: true,
     secure: IS_PRODUCTION,
-    sameSite: "lax" as const,
+    sameSite: IS_PRODUCTION
+      ? ("none" as const)
+      : ("lax" as const),
     path: "/auth",
   };
 }
