@@ -1,49 +1,116 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
+
 import { useQueryClient } from "@tanstack/react-query";
 
-import { api, TOKEN_KEY } from "../lib/api";
-import { socket, synchronizeSocketAuth } from "../lib/socket";
-import type { AuthUser, LoginResponse, MeResponse } from "../types/auth";
+import {
+  api,
+  getSessionVersion,
+  invalidateSession,
+  isCurrentSession,
+  refreshAccessToken,
+  setAccessToken,
+  waitForPendingRefresh,
+} from "../lib/api";
+
+import { socket } from "../lib/socket";
+
+import type {
+  AuthUser,
+  LoginResponse,
+} from "../types/auth";
+
 import { AuthContext } from "./auth-context";
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const queryClient = useQueryClient();
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Serializa operações explícitas de login e logout.
+  const authOperation = useRef<Promise<void>>(
+    Promise.resolve(),
+  );
+
+  const runAuthOperation = useCallback(
+    (operation: () => Promise<void>): Promise<void> => {
+      const next = authOperation.current.then(
+        operation,
+        operation,
+      );
+
+      authOperation.current = next.catch(() => {});
+
+      return next;
+    },
+    [],
+  );
+
   const logout = useCallback(() => {
+    // Invalida imediatamente o access token.
+    invalidateSession();
+
     queryClient.clear();
-    sessionStorage.removeItem(TOKEN_KEY);
     setUser(null);
 
-    synchronizeSocketAuth();
-  }, [queryClient]);
+    socket.disconnect();
+    socket.auth = {};
+
+    void runAuthOperation(async () => {
+      // Aguarda qualquer refresh iniciado anteriormente.
+      await waitForPendingRefresh();
+
+      // Revoga a sessão no backend.
+      await api.post("/auth/logout");
+    }).catch((error: unknown) => {
+      console.error(
+        "Falha ao encerrar a sessão no servidor:",
+        error,
+      );
+    });
+  }, [queryClient, runAuthOperation]);
 
   useEffect(() => {
     let active = true;
 
+    const version = getSessionVersion();
+
     async function restoreSession() {
-      const token = sessionStorage.getItem(TOKEN_KEY);
-
-      if (!token) {
-        if (active) {
-          setIsLoading(false);
-        }
-        return;
-      }
-
       try {
-        const { data } = await api.get<MeResponse>("/auth/me");
+        const token = await refreshAccessToken();
 
-        if (active) {
-          setUser(data.user);
+        if (!active || !isCurrentSession(version)) {
+          return;
         }
+
+        if (!token) {
+          setUser(null);
+          return;
+        }
+
+        const response = await api.get<{
+          user: AuthUser;
+        }>("/auth/me");
+
+        if (!active || !isCurrentSession(version)) {
+          return;
+        }
+
+        setUser(response.data.user);
       } catch {
-        if (active) {
+        if (active && isCurrentSession(version)) {
+          invalidateSession();
           queryClient.clear();
-          sessionStorage.removeItem(TOKEN_KEY);
           setUser(null);
         }
       } finally {
@@ -60,31 +127,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [queryClient]);
 
-  useEffect(() => {
-    if (isLoading) {
-      return;
-    }
-
-    synchronizeSocketAuth();
-  }, [isLoading]);
-
   const login = useCallback(
-    async (email: string, password: string) => {
-      const { data } = await api.post<LoginResponse>("/auth/login", {
-        email,
-        password,
+    (email: string, password: string): Promise<void> => {
+      return runAuthOperation(async () => {
+        // Não permite novo login enquanto houver
+        // refresh ou logout pendente nesta aba.
+        await waitForPendingRefresh();
+
+        const version = getSessionVersion();
+
+        const { data } = await api.post<LoginResponse>(
+          "/auth/login",
+          {
+            email,
+            password,
+          },
+        );
+
+        if (!isCurrentSession(version)) {
+          return;
+        }
+
+        invalidateSession();
+        queryClient.clear();
+
+        setAccessToken(data.accessToken);
+        setUser(data.user);
+        setIsLoading(false);
       });
-
-      queryClient.clear();
-      sessionStorage.setItem(TOKEN_KEY, data.accessToken);
-      setUser(data.user);
-
-      synchronizeSocketAuth();
     },
-    [queryClient],
+    [queryClient, runAuthOperation],
   );
 
-  // Desconecta a sessão Socket.IO quando o provedor é desmontado.
   useEffect(() => {
     return () => {
       socket.disconnect();
@@ -92,7 +166,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        login,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -17,7 +17,7 @@ export function signAccessToken(payload: AuthPayload): string {
     secret,
     {
       subject: payload.sub,
-      expiresIn: "2h",
+      expiresIn: "15m",
       algorithm: "HS256",
     },
   );

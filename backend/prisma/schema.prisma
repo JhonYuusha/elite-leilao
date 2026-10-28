@@ -36,10 +36,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  wallet       Wallet?
-  lots         Lot[]               @relation("AuctioneerLots")
-  bids         Bid[]
-  transactions WalletTransaction[]
+  wallet          Wallet?
+  lots            Lot[]               @relation("AuctioneerLots")
+  bids            Bid[]
+  transactions    WalletTransaction[]
+  refreshSessions RefreshSession[]
 }
 
 model Wallet {
@@ -129,4 +130,26 @@ model Receipt {
   issuedAt    DateTime @default(now())
 
   lot Lot @relation(fields: [lotId], references: [id])
+}
+
+model RefreshSession {
+  id           String    @id @default(uuid())
+  userId       String
+  familyId     String    @default(uuid())
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  usedAt       DateTime?
+  revokedAt    DateTime?
+  replacedById String?   @unique
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  replacedBy RefreshSession? @relation("SessionRotation", fields: [replacedById], references: [id])
+  replaces   RefreshSession? @relation("SessionRotation")
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
 }
