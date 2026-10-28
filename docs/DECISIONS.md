@@ -1,373 +1,570 @@
 # ÁUREO — Registro de Decisões Técnicas
 
 **Projeto:** ÁUREO — Plataforma de Leilões Online
-**Última revisão:** 26/10/2026
-**Responsável pelo desenvolvimento:** João Victor
+**Última revisão:** 28/10/2026
+**Desenvolvimento:** João Victor
 **Apoio na análise técnica:** Kauã
+**Status geral:** Implementação local validada; implantação pública pendente.
 
-Este documento registra as principais decisões de arquitetura, suas justificativas, o estado atual de implementação e os aprimoramentos previstos.
+Este documento registra as decisões arquiteturais adotadas no ÁUREO, suas justificativas, garantias, limitações e oportunidades de evolução.
+
+Os status representam o estado da implementação em 28/10/2026, considerando o código da branch `main` e as validações executadas.
 
 ---
 
-## ADR-001 — Arquitetura
+## ADR-001 — Arquitetura e separação de responsabilidades
 
-**Status:** Adotada e implementada
-
-### Tecnologias
-
-- **Backend:** Node.js, Express e TypeScript.
-- **Frontend:** React, Vite e TypeScript.
-- **Banco de dados:** PostgreSQL.
-- **ORM:** Prisma.
-- **Autenticação:** JWT.
-- **Comunicação em tempo real:** Socket.IO.
-- **Validação de dados:** Zod.
-- **Gerenciamento de estado remoto:** TanStack React Query.
-- **Testes:** Vitest e Supertest.
-- **Infraestrutura local:** Docker Compose.
+**Status:** Implementada.
 
 ### Decisão
 
-O backend concentra as regras de negócio, enquanto o frontend consome a API HTTP e recebe notificações de atualização via Socket.IO.
+Adotar uma arquitetura full-stack com responsabilidades distribuídas entre:
 
-O PostgreSQL permanece como fonte de verdade para saldos, lances, reservas financeiras e encerramentos.
+- Frontend React, Vite e TypeScript.
+- Backend Node.js, Express e TypeScript.
+- PostgreSQL como fonte de verdade.
+- Prisma para acesso ao banco.
+- Zod para validação de dados.
+- Socket.IO para notificações em tempo real.
+- TanStack React Query para gerenciamento de estado remoto.
 
-Eventos em tempo real não substituem a persistência nem a validação no servidor.
+O backend organiza a implementação em rotas HTTP, serviços, middlewares e schemas.
+
+### Justificativa
+
+As regras de negócio devem permanecer independentes da camada de transporte HTTP.
+
+Rotas recebem requisições, validam entradas, chamam serviços e constroem respostas.
+
+Serviços implementam regras de negócio, consultas e transações.
+
+### Decisão adicional
+
+Não introduzir camadas independentes de controllers e repositories sem necessidade concreta.
+
+A separação atual evita abstrações redundantes e facilita a navegação pelo código.
 
 ---
 
 ## ADR-002 — Representação monetária
 
-**Status:** Implementada
+**Status:** Implementada.
 
-Todos os valores monetários são armazenados em centavos, utilizando `BIGINT`.
+### Decisão
 
-Na API, valores monetários são representados como strings decimais, evitando perda de precisão decorrente do tipo `number` do JavaScript.
+Armazenar valores financeiros em centavos utilizando `BIGINT`.
 
-**Exemplo:**
+Representar valores monetários nas respostas HTTP como strings decimais.
 
-`"150000"` representa R$ 1.500,00.
+Exemplo:
 
-As operações financeiras utilizam valores inteiros, sem depender de cálculos monetários com ponto flutuante.
+```json
+{
+  "amountCents": "150000"
+}
+```
+
+O valor corresponde a R$ 1.500,00.
+
+### Justificativa
+
+Evitar erros de precisão decorrentes de cálculos financeiros utilizando números de ponto flutuante.
+
+### Garantias
+
+- Operações financeiras com valores inteiros.
+- Conversão explícita para strings na API.
+- Validação de limites antes de operações críticas.
 
 ---
 
-## ADR-003 — Carteira financeira
+## ADR-003 — Carteiras financeiras simuladas
 
-**Status:** Implementada
+**Status:** Implementada e testada.
 
-Cada participante possui uma carteira com:
+### Decisão
+
+Cada participante possui uma carteira financeira com:
 
 - `totalCents`: saldo total.
-- `committedCents`: saldo reservado em lances líderes.
-- `availableCents`: saldo disponível, calculado pela diferença entre total e reservado.
+- `committedCents`: saldo reservado.
+- `availableCents`: saldo disponível calculado.
+
+```text
+availableCents = totalCents - committedCents
+```
 
 ### Regras
 
-- Depósitos de demonstração são registrados no histórico financeiro.
-- Lances aceitos reservam saldo.
-- Quando um lance é superado, sua reserva é liberada.
-- A carteira do novo líder recebe a reserva correspondente.
-- Operações financeiras utilizam transações PostgreSQL.
-- Bloqueios de linha protegem operações concorrentes.
+- Depósitos simulados aumentam o saldo.
+- Depósitos geram movimentações financeiras.
+- Lances líderes comprometem saldo.
+- Lances superados liberam reservas anteriores.
+- A liquidação converte a reserva vencedora em débito definitivo.
+- Operações críticas utilizam transações PostgreSQL.
 
-### Aprimoramento pendente
+### Atualização em tempo real
 
-Sincronizar as carteiras em tempo real quando um participante for superado, utilizando eventos privados autenticados.
+O evento privado `wallet:updated` informa alterações aos usuários envolvidos.
 
----
+O evento não transporta valores financeiros.
 
-## ADR-004 — Lances e concorrência
-
-**Status:** Implementada e testada
-
-Um lance somente é aceito quando:
-
-1. O usuário está autenticado como participante.
-2. O lote está dentro do período válido de leilão.
-3. O valor respeita o lance mínimo e o incremento.
-4. Existe saldo disponível suficiente.
-5. O participante não é o líder atual do mesmo lote.
-
-### Processamento transacional
-
-A aceitação ocorre em uma única transação PostgreSQL:
-
-1. Bloqueio do lote com `SELECT ... FOR UPDATE`.
-2. Consulta e validação do estado atualizado.
-3. Bloqueio das carteiras envolvidas em ordem determinística.
-4. Validação do horário utilizando o relógio do PostgreSQL.
-5. Liberação da reserva do líder anterior.
-6. Reserva do valor do novo líder.
-7. Registro das movimentações financeiras.
-8. Registro do lance.
-9. Atualização do lote e de seu horário de encerramento, quando necessário.
-
-A transação utiliza isolamento `READ COMMITTED`.
-
-### Decisão de consistência
-
-Eventos Socket.IO são publicados somente depois da confirmação da transação.
-
-Uma falha na publicação do evento não desfaz um lance já confirmado no banco.
+O frontend consulta novamente a API autenticada para atualizar a carteira.
 
 ---
 
-## ADR-005 — Histórico auditável
+## ADR-004 — Concorrência de lances
 
-**Status:** Implementação inicial concluída
+**Status:** Implementada e testada.
 
-Os lances formam uma cadeia de hashes SHA-256.
+### Decisão
 
-Cada registro contém:
+Serializar lances conflitantes utilizando bloqueios transacionais no PostgreSQL.
+
+### Processamento
+
+1. Bloquear o lote com `SELECT ... FOR UPDATE`.
+2. Consultar o estado atualizado.
+3. Identificar o lance anterior.
+4. Bloquear carteiras em ordem determinística.
+5. Consultar o horário atual do PostgreSQL.
+6. Validar período, incremento e saldo.
+7. Liberar a reserva anterior.
+8. Reservar o novo valor.
+9. Registrar movimentações financeiras.
+10. Registrar o lance.
+11. Atualizar o lote.
+
+### Isolamento
+
+Utilizar `READ COMMITTED`.
+
+### Justificativa
+
+Impedir que requisições concorrentes confirmem operações com base em estados desatualizados.
+
+### Consistência dos eventos
+
+Notificações Socket.IO são publicadas somente após a confirmação da transação.
+
+Falhas na publicação não desfazem alterações já persistidas.
+
+---
+
+## ADR-005 — Histórico auditável de lances
+
+**Status:** Implementação parcial.
+
+### Decisão
+
+Encadear os lances utilizando hashes SHA-256.
+
+Cada lance registra:
 
 - Identificador do lote.
 - Identificador do participante.
-- Valor do lance.
-- Data e hora de aceitação.
+- Valor.
+- Horário.
 - Hash anterior.
-- Hash do lance atual.
+- Hash atual.
 
-O hash é calculado a partir dos dados do lance e da referência ao registro anterior.
+O hash atual depende dos dados do lance e do hash anterior.
 
 ### Objetivo
 
-Permitir a detecção de alterações posteriores nos dados encadeados, mediante verificação da cadeia.
+Facilitar a detecção de alterações posteriores no histórico, quando comparado com uma referência íntegra.
 
 ### Limitação conhecida
 
-Uma cadeia de hashes armazenada no mesmo banco não constitui, isoladamente, uma prova externa e imutável.
+Uma cadeia de hashes armazenada exclusivamente no próprio banco não oferece prova independente de imutabilidade.
 
-Uma âncora externa ou mecanismo independente de verificação poderá fortalecer a auditoria futuramente.
+Um agente com controle completo sobre o banco pode reescrever registros e recalcular a cadeia.
+
+### Evolução futura
+
+- Verificação independente da cadeia.
+- Assinaturas digitais.
+- Ancoragem externa.
+- Publicação de referências criptográficas confiáveis.
+
+Não apresentar a implementação atual como uma auditoria pública criptograficamente imutável.
 
 ---
 
 ## ADR-006 — Anti-sniping
 
-**Status:** Implementada
+**Status:** Implementada e testada.
 
-Um lance válido recebido nos últimos dois minutos do leilão prorroga o encerramento para dois minutos após sua aceitação.
+### Decisão
 
-### Decisões
+Prorrogar o encerramento quando um lance válido for aceito nos últimos dois minutos do leilão.
 
-- O horário de aceitação é obtido do PostgreSQL.
-- A prorrogação é calculada no backend.
-- O novo encerramento é persistido na mesma transação do lance.
-- O frontend recebe a atualização do horário por meio da API e dos eventos de tempo real.
+### Regra
 
-O objetivo é reduzir a vantagem de lances feitos nos instantes finais sem possibilidade de reação dos demais participantes.
+```text
+novoEncerramento = horarioAceitacao + 2 minutos
+```
+
+### Implementação
+
+- Horário obtido com `clock_timestamp()` do PostgreSQL.
+- Validação executada no backend.
+- Atualização persistida na transação do lance.
+- Novo encerramento informado ao frontend.
+
+### Justificativa
+
+Reduzir a vantagem de lances realizados nos instantes finais, oferecendo tempo adicional para reação.
 
 ---
 
-## ADR-007 — Liquidação
+## ADR-007 — Liquidação financeira idempotente
 
-**Status:** Implementada e testada
+**Status:** Implementada e testada.
 
-Ao liquidar um lote encerrado:
+### Decisão
 
-- O valor reservado do vencedor é utilizado na liquidação.
-- O leiloeiro recebe o crédito correspondente.
-- As movimentações financeiras são registradas.
-- A liquidação é idempotente.
-- Existe funcionalidade de comprovante de liquidação.
+A liquidação deve preservar a consistência financeira mesmo diante de requisições repetidas ou concorrentes.
 
-### Decisões
+### Regras
 
-A liquidação deve preservar a consistência financeira, inclusive diante de chamadas repetidas e operações concorrentes.
+- Apenas o leiloeiro responsável pode liquidar o lote.
+- A titularidade é verificada dentro da transação.
+- O lote é bloqueado antes da verificação.
+- O encerramento deve ter ocorrido.
+- Liquidações já registradas não geram novas transferências.
+- Lotes sem lances podem ser encerrados sem movimentação financeira.
 
-A suíte automatizada cobre transferência de valores, idempotência e preservação de créditos em liquidações simultâneas.
+### Liquidação com vencedor
 
-A verificabilidade pública do comprovante deve continuar sendo avaliada separadamente da simples existência do documento.
+1. Validar o lance vencedor.
+2. Bloquear as carteiras envolvidas.
+3. Debitar o valor reservado do vencedor.
+4. Liberar o compromisso financeiro.
+5. Creditar o leiloeiro.
+6. Registrar movimentações.
+7. Registrar a liquidação.
+8. Criar o comprovante.
+9. Encerrar o lote.
+
+### Limitação
+
+Não existe um mecanismo automático de recuperação de liquidações pendentes confirmado na implementação atual.
 
 ---
 
 ## ADR-008 — Estratégia de testes
 
-**Status:** Implementada e em evolução
+**Status:** Implementada e em evolução.
 
-O backend utiliza Vitest e Supertest para testes automatizados.
+### Ferramentas
 
-### Estado atual
+- Vitest.
+- Supertest.
+- TypeScript.
+- ESLint.
 
-**85 testes aprovados, distribuídos em 10 arquivos de teste.**
+### Resultado registrado em 28/10/2026
 
-### Cobertura funcional existente
+**110 testes aprovados em 13 suítes de backend.**
 
-- Autenticação e autorização.
-- Saúde da API e conexão com PostgreSQL.
+### Funcionalidades cobertas
+
+- Autenticação.
+- Autorização.
+- Refresh tokens.
+- Revogação de sessões.
+- Saúde da API.
+- Conexão com PostgreSQL.
 - Catálogo público.
-- Criação e gerenciamento de lotes.
-- Cancelamento de lotes.
-- Validação de valores monetários.
-- Depósitos e consultas de carteira.
-- Registro de lances e reservas financeiras.
-- Cenários de concorrência.
-- Liquidação e idempotência.
+- Criação de lotes.
+- Gerenciamento e cancelamento.
+- Carteiras.
+- Depósitos simulados.
+- Lances.
+- Concorrência.
+- Liquidação.
+- Idempotência.
 - Comprovantes.
+- Socket.IO.
+- Isolamento de eventos privados.
 
 ### Validações adicionais
 
-- Compilação TypeScript do backend.
-- Build de produção do frontend.
-- ESLint do frontend.
-- Teste manual da sincronização bidirecional de lances.
+- Build do backend aprovado.
+- Build do frontend aprovado.
+- ESLint do frontend aprovado.
+- Sincronização bidirecional de lances validada manualmente.
 
-### Próximas prioridades
+### Evolução futura
 
-- Testes automatizados de conexão e eventos Socket.IO.
-- Testes de autenticação e isolamento de salas privadas.
-- Testes de reconexão e troca de sessão.
-- Ampliação dos testes de integração do frontend.
+Ampliar testes automatizados da interface e executar homologação ponta a ponta no ambiente publicado.
 
 ---
 
 ## ADR-009 — Comunicação em tempo real
 
-**Status:** Implementação inicial concluída
+**Status:** Implementada e testada.
 
 ### Decisão
 
-Utilizar Socket.IO para notificar clientes sobre alterações de lances e lotes.
+Utilizar Socket.IO para notificar alterações sem substituir o banco de dados como fonte de verdade.
 
-### Eventos existentes
+### Eventos públicos
 
-- `lot:join`: entrada na sala de um lote.
-- `lot:leave`: saída da sala.
-- `lot:updated`: atualização de um lote específico.
-- `lots:updated`: sinalização de alteração no catálogo.
+- `lot:join`.
+- `lot:leave`.
+- `lot:updated`.
+- `lots:updated`.
 
-### Funcionamento
+### Evento privado
 
-Após a confirmação de um lance, o backend publica os eventos correspondentes.
+- `wallet:updated`.
 
-No frontend, os eventos invalidam consultas do TanStack React Query, que recupera os dados atualizados da API.
+### Segurança
 
-### Validação realizada
+Conexões anônimas podem acompanhar eventos públicos.
 
-A atualização automática de lances foi testada manualmente entre duas sessões independentes, funcionando nos dois sentidos.
+Conexões autenticadas apresentam JWT validado no handshake.
 
-### Limitações e próximos passos
+A identidade é derivada exclusivamente do token validado.
 
-- Autenticar conexões Socket.IO com JWT.
-- Criar salas privadas associadas à identidade validada pelo servidor.
-- Implementar o evento privado `wallet:updated`.
-- Sincronizar reservas e liberações financeiras sem transmitir saldos em canais públicos.
-- Adicionar testes automatizados de segurança e reconexão.
+Salas privadas são definidas pelo servidor utilizando o identificador do usuário.
 
-As salas de lotes existentes são utilizadas para atualização de informações públicas. Não devem transportar dados financeiros privados.
+O cliente não pode selecionar a sala privada de outro participante.
+
+### Expiração
+
+A conexão autenticada é encerrada quando o JWT expira.
+
+O frontend sincroniza a conexão quando o access token muda.
+
+### Privacidade
+
+Notificações privadas não transportam o saldo da carteira.
 
 ---
 
 ## ADR-010 — Experiência de carregamento
 
-**Status:** Implementada
+**Status:** Implementada.
 
 ### Decisão
 
-Adotar uma identidade visual de carregamento consistente com a proposta do ÁUREO.
+Padronizar os estados de carregamento com identidade visual própria.
 
 ### Componentes
 
-- `AureoLoader`: balança animada reutilizável.
-- `SplashScreen`: tela de abertura.
-- `useMinimumLoading`: controle de duração mínima de apresentação.
+- `AureoLoader`.
+- `SplashScreen`.
+- `useMinimumLoading`.
 
 ### Comportamento
 
-- A tela de abertura aparece durante a inicialização e restauração da sessão.
-- O loading de login aparece enquanto a autenticação é processada.
-- Campos e controles de envio ficam desabilitados durante a requisição.
-- Falhas de autenticação devolvem o controle ao usuário.
-- As animações respeitam a preferência por movimento reduzido.
+- Exibir carregamento durante a inicialização.
+- Informar o processamento de autenticação.
+- Desabilitar controles durante operações pendentes.
+- Restaurar a interação após falhas.
+- Considerar preferências de movimento reduzido.
 
 ### Observação
 
-A duração mínima de apresentação é uma decisão de experiência visual, não uma exigência da autenticação.
+A duração mínima de carregamento é uma escolha visual e não uma exigência de segurança.
 
-Seu impacto na velocidade percebida deverá ser reavaliado antes de uma implantação em produção.
+Seu impacto no desempenho percebido deve ser avaliado em produção.
 
 ---
 
 ## ADR-011 — Organização dos estilos
 
-**Status:** Planejada
+**Status:** Implementada.
 
-### Decisão proposta
+### Decisão
 
-Centralizar os arquivos CSS em `frontend/src/styles`, mantendo a separação por responsabilidade.
+Centralizar os arquivos CSS em `frontend/src/styles`.
 
-Estrutura prevista:
+### Estrutura
 
 ```text
 styles/
-├── global/
 ├── components/
+├── global/
 └── pages/
 ```
 
 ### Objetivos
 
-- Padronizar a localização dos estilos.
-- Facilitar a navegação e a revisão do código.
-- Preservar a separação entre estilos globais, componentes e páginas.
-- Evitar alterações visuais durante a reorganização.
+- Facilitar a manutenção.
+- Melhorar a navegação pelo projeto.
+- Separar estilos globais, componentes e páginas.
+- Reduzir dispersão de arquivos.
 
-### Estratégia
+### Validação
 
-Realizar a migração em um commit exclusivamente de refatoração, ajustando os imports e validando build, lint e interface após a mudança.
+Build e ESLint do frontend aprovados após a reorganização.
 
 ---
 
-## ADR-012 — Autenticação e isolamento de eventos privados
+## ADR-012 — Autenticação e sessões persistentes
 
-**Status:** Planejada
+**Status:** Implementada e testada.
 
 ### Decisão
 
-Reutilizar a validação JWT existente do backend na autenticação de conexões Socket.IO.
+Utilizar JWT para acesso à API e refresh tokens rotativos para renovação das sessões.
 
-### Regras previstas
+### Implementação
 
-- Validar o token durante a conexão.
-- Derivar a identidade do usuário exclusivamente do JWT validado.
-- Impedir que o cliente escolha a sala privada de outro participante.
-- Notificar alterações financeiras somente aos usuários envolvidos.
-- Desconectar ou reautenticar o socket após login, logout ou troca de conta.
-- Não enviar valores de carteira em eventos públicos.
+- Senhas protegidas com bcryptjs.
+- Access token JWT de curta duração.
+- Refresh token armazenado em cookie HttpOnly.
+- Hash do refresh token persistido no PostgreSQL.
+- Rotação durante a renovação.
+- Revogação de sessões.
+- Detecção de reutilização de refresh tokens.
+- Access token mantido em memória no frontend.
 
-### Objetivo
+### Proteções
 
-Garantir que a atualização em tempo real preserve as mesmas fronteiras de autenticação e privacidade aplicadas às rotas HTTP.
+As rotas de renovação e logout exigem origem confiável.
+
+O backend valida a autenticação e autorização independentemente do frontend.
+
+### Limitação de implantação
+
+A configuração atual do refresh cookie utiliza `SameSite=Lax`.
+
+Se frontend e backend forem hospedados em sites distintos, será necessário revisar cookies, CORS e proteção CSRF antes da homologação.
 
 ---
 
-## Próximas atividades
+## ADR-013 — Integração com API externa
+
+**Status:** Implementada.
+
+### Decisão
+
+Permitir a importação de metadados de produtos do DummyJSON.
+
+### Estratégia
+
+- Requisições HTTP ao catálogo externo.
+- Timeout de cinco segundos.
+- Validação da resposta com Zod.
+- Tratamento de respostas inválidas.
+- Tratamento de indisponibilidade.
+- Armazenamento de snapshot dos dados relevantes.
+
+### Resiliência
+
+O cadastro manual de lotes não depende da disponibilidade da API externa.
+
+### Limitação
+
+Não há mecanismo avançado de cache, fila ou circuit breaker confirmado.
+
+---
+
+## ADR-014 — Comprovantes públicos
+
+**Status:** Implementada e testada.
+
+### Decisão
+
+Criar comprovantes de liquidação consultáveis por token público aleatório.
+
+### Informações
+
+- Identificação do lote.
+- Título do item.
+- Alias do vencedor.
+- Valor da liquidação.
+- Data da operação.
+
+### Privacidade
+
+O comprovante evita divulgar informações pessoais desnecessárias do vencedor.
+
+### Limitação
+
+A existência de um comprovante público não equivale a uma assinatura digital ou certificação externa da operação.
+
+---
+
+## ADR-015 — Documentação e implantação
+
+**Status:** Documentação atualizada; implantação pendente.
+
+### Decisão
+
+Manter a documentação alinhada à implementação real.
+
+### Documentos
+
+- `README.md`: apresentação, instalação e funcionalidades.
+- `docs/ARCHITECTURE.md`: arquitetura e fluxos técnicos.
+- `docs/DECISIONS.md`: decisões, justificativas e limitações.
+
+### Requisitos para implantação
+
+1. Hospedagem pública do backend.
+2. Banco PostgreSQL configurado.
+3. Aplicação das migrations.
+4. Variáveis de ambiente seguras.
+5. Hospedagem pública do frontend.
+6. Configuração de CORS.
+7. Revisão da estratégia de cookies.
+8. Comunicação Socket.IO sobre HTTPS.
+9. Testes ponta a ponta.
+10. Atualização dos links de demonstração.
+
+### Observação
+
+Não declarar a implantação concluída antes da validação do ambiente público.
+
+---
+
+## Pendências priorizadas
 
 ### Prioridade imediata
 
-1. Reorganizar os arquivos CSS em `frontend/src/styles`.
-2. Implementar autenticação JWT no Socket.IO.
-3. Sincronizar carteiras por eventos privados.
-4. Criar testes de isolamento, reconexão e autorização dos eventos.
+1. Implantar frontend, backend e banco PostgreSQL.
+2. Revisar cookies e CORS conforme os domínios escolhidos.
+3. Validar login, renovação e logout em produção.
+4. Validar lances simultâneos e Socket.IO no ambiente hospedado.
+5. Validar liquidação e comprovantes públicos.
+6. Preparar uma demonstração reproduzível para o avaliador.
 
 ### Melhorias posteriores
 
+- Implementar recuperação automática de liquidações pendentes.
+- Fortalecer a auditoria com ancoragem externa.
 - Ampliar testes automatizados do frontend.
-- Revisar acessibilidade e desempenho das animações.
-- Fortalecer a verificabilidade externa do histórico auditável.
-- Revisar a documentação de execução e demonstração.
+- Avaliar desempenho e acessibilidade.
+- Remover arquivos vazios não utilizados.
+- Melhorar a observabilidade da aplicação.
 
 ---
 
-## Estado de validação da revisão
+## Estado de validação
 
-Na última execução registrada:
+**Revisão:** 28/10/2026.
 
-- Backend: build aprovado.
-- Backend: 85/85 testes aprovados.
-- Frontend: build de produção aprovado.
-- Frontend: ESLint aprovado.
-- Socket.IO: sincronização bidirecional de lances validada manualmente.
-- Git: alterações de tempo real e carregamento enviadas à branch `main`.
+| Verificação | Resultado |
+|---|---|
+| Backend — build | Aprovado |
+| Backend — testes | 110/110 |
+| Backend — suítes | 13/13 |
+| Frontend — build | Aprovado |
+| Frontend — ESLint | Aprovado |
+| Git — último commit funcional | `ce3c155` |
 
-**Observação:** as funcionalidades planejadas neste documento não devem ser consideradas implementadas até que sejam desenvolvidas e validadas.
+Os testes automatizados demonstram o funcionamento dos cenários cobertos, mas não substituem uma auditoria externa de segurança.
+
+A implantação pública permanece pendente de homologação.
+
+---
+
+**ÁUREO — Plataforma de Leilões Online**
+
+Registro técnico das decisões adotadas durante o desenvolvimento.
