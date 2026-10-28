@@ -1,10 +1,15 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../lib/prisma.js";
+
+import {
+  getPublicReceipt,
+} from "../services/receipt.service.js";
 
 export const receiptRoutes = Router();
 
-const tokenSchema = z.string().regex(/^[a-f0-9]{48}$/);
+const tokenSchema = z
+  .string()
+  .regex(/^[a-f0-9]{48}$/);
 
 receiptRoutes.get("/:token", async (req, res) => {
   const parsed = tokenSchema.safeParse(req.params.token);
@@ -17,23 +22,7 @@ receiptRoutes.get("/:token", async (req, res) => {
   }
 
   try {
-    const receipt = await prisma.receipt.findUnique({
-      where: {
-        publicToken: parsed.data,
-      },
-      select: {
-        id: true,
-        lotId: true,
-        winnerAlias: true,
-        amountCents: true,
-        issuedAt: true,
-        lot: {
-          select: {
-            title: true,
-          },
-        },
-      },
-    });
+    const receipt = await getPublicReceipt(parsed.data);
 
     if (!receipt) {
       res.status(404).json({
@@ -42,16 +31,7 @@ receiptRoutes.get("/:token", async (req, res) => {
       return;
     }
 
-    res.status(200).json({
-      receipt: {
-        id: receipt.id,
-        lotId: receipt.lotId,
-        lotTitle: receipt.lot.title,
-        winnerAlias: receipt.winnerAlias,
-        amountCents: receipt.amountCents.toString(),
-        issuedAt: receipt.issuedAt,
-      },
-    });
+    res.status(200).json({ receipt });
   } catch (error) {
     console.error(
       "[GET /receipts/:token] Falha ao consultar comprovante:",

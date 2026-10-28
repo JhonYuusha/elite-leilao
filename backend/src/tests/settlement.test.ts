@@ -43,7 +43,9 @@ describe("Liquidação de leilões", () => {
         startingBidCents: 10000n,
         minIncrementCents: 1000n,
         startsAt: new Date(now - 3_600_000),
-        endsAt: new Date(now + (ended ? -60_000 : 3_600_000)),
+        endsAt: new Date(
+          now + (ended ? -60_000 : 3_600_000),
+        ),
         status: "LIVE",
       },
     });
@@ -70,7 +72,9 @@ describe("Liquidação de leilões", () => {
 
     await prisma.wallet.update({
       where: { userId: bidderId },
-      data: { committedCents: { increment: 10000n } },
+      data: {
+        committedCents: { increment: 10000n },
+      },
     });
 
     await prisma.walletTransaction.create({
@@ -85,7 +89,10 @@ describe("Liquidação de leilões", () => {
     return bid;
   }
 
-  async function settle(lotId: string, token = auctioneerToken) {
+  async function settle(
+    lotId: string,
+    token = auctioneerToken,
+  ) {
     return request(app)
       .post(`/lots/${lotId}/settle`)
       .set("Authorization", `Bearer ${token}`);
@@ -171,13 +178,16 @@ describe("Liquidação de leilões", () => {
 
   it("deve rejeitar liquidação sem autenticação", async () => {
     const lot = await createLot();
-    const response = await request(app).post(`/lots/${lot.id}/settle`);
+
+    const response = await request(app)
+      .post(`/lots/${lot.id}/settle`);
 
     expect(response.status).toBe(401);
   });
 
   it("deve impedir que participantes liquidem lotes", async () => {
     const lot = await createLot();
+
     const response = await settle(lot.id, bidderToken);
 
     expect(response.status).toBe(403);
@@ -185,13 +195,18 @@ describe("Liquidação de leilões", () => {
 
   it("deve impedir liquidação por outro leiloeiro", async () => {
     const lot = await createLot();
-    const response = await settle(lot.id, otherAuctioneerToken);
+
+    const response = await settle(
+      lot.id,
+      otherAuctioneerToken,
+    );
 
     expect(response.status).toBe(403);
   });
 
   it("deve impedir liquidação antes do encerramento", async () => {
     const lot = await createLot(false);
+
     const response = await settle(lot.id);
 
     expect(response.status).toBe(409);
@@ -203,27 +218,31 @@ describe("Liquidação de leilões", () => {
     expect(savedLot.status).toBe("LIVE");
   });
 
-  it("deve encerrar lote sem lances e sem movimentação financeira", async () => {
-    const lot = await createLot();
-    const response = await settle(lot.id);
+  it(
+    "deve encerrar lote sem lances e sem movimentação financeira",
+    async () => {
+      const lot = await createLot();
 
-    expect(response.status).toBe(200);
-    expect(response.body.alreadySettled).toBe(false);
-    expect(response.body.settlement.winnerId).toBeNull();
-    expect(response.body.settlement.amountCents).toBeNull();
+      const response = await settle(lot.id);
 
-    const savedLot = await prisma.lot.findUniqueOrThrow({
-      where: { id: lot.id },
-    });
+      expect(response.status).toBe(200);
+      expect(response.body.alreadySettled).toBe(false);
+      expect(response.body.settlement.winnerId).toBeNull();
+      expect(response.body.settlement.amountCents).toBeNull();
 
-    expect(savedLot.status).toBe("ENDED");
+      const savedLot = await prisma.lot.findUniqueOrThrow({
+        where: { id: lot.id },
+      });
 
-    const transactions = await prisma.walletTransaction.findMany({
-      where: { lotId: lot.id },
-    });
+      expect(savedLot.status).toBe("ENDED");
 
-    expect(transactions).toHaveLength(0);
-  });
+      const transactions = await prisma.walletTransaction.findMany({
+        where: { lotId: lot.id },
+      });
+
+      expect(transactions).toHaveLength(0);
+    },
+  );
 
   it("deve transferir o valor do vencedor para o leiloeiro", async () => {
     const lot = await createLot();
@@ -248,8 +267,14 @@ describe("Liquidação de leilões", () => {
       where: { userId: auctioneerId },
     });
 
-    expect(winnerAfter.totalCents).toBe(winnerBefore.totalCents - 10000n);
-    expect(winnerAfter.committedCents).toBe(winnerBefore.committedCents - 10000n);
+    expect(winnerAfter.totalCents).toBe(
+      winnerBefore.totalCents - 10000n,
+    );
+
+    expect(winnerAfter.committedCents).toBe(
+      winnerBefore.committedCents - 10000n,
+    );
+
     expect(auctioneerWallet.totalCents).toBe(10000n);
 
     const debit = await prisma.walletTransaction.findFirst({
@@ -290,131 +315,254 @@ describe("Liquidação de leilões", () => {
     expect(second.status).toBe(200);
     expect(first.body.alreadySettled).toBe(false);
     expect(second.body.alreadySettled).toBe(true);
-    expect(second.body.settlement.id).toBe(first.body.settlement.id);
+    expect(second.body.settlement.id).toBe(
+      first.body.settlement.id,
+    );
 
     const debits = await prisma.walletTransaction.count({
-      where: { lotId: lot.id, type: "AUCTION_DEBIT" },
+      where: {
+        lotId: lot.id,
+        type: "AUCTION_DEBIT",
+      },
     });
 
     const credits = await prisma.walletTransaction.count({
-      where: { lotId: lot.id, type: "AUCTION_CREDIT" },
+      where: {
+        lotId: lot.id,
+        type: "AUCTION_CREDIT",
+      },
     });
 
     expect(debits).toBe(1);
     expect(credits).toBe(1);
   });
 
-  it("deve impedir pagamento duplicado em liquidações simultâneas", async () => {
-    const lot = await createLot();
-    await createWinningBid(lot.id);
+  it(
+    "deve impedir pagamento duplicado em liquidações simultâneas",
+    async () => {
+      const lot = await createLot();
+      await createWinningBid(lot.id);
 
-    const responses = await Promise.all([
-      settle(lot.id),
-      settle(lot.id),
-    ]);
+      const responses = await Promise.all([
+        settle(lot.id),
+        settle(lot.id),
+      ]);
 
-    expect(responses.map((r) => r.status).sort()).toEqual([200, 200]);
-    expect(responses.map((r) => r.body.alreadySettled).sort()).toEqual([
-      false,
-      true,
-    ]);
+      expect(
+        responses.map((response) => response.status).sort(),
+      ).toEqual([200, 200]);
 
-    const settlements = await prisma.settlement.count({
-      where: { lotId: lot.id },
-    });
+      expect(
+        responses.map(
+          (response) => response.body.alreadySettled,
+        ).sort(),
+      ).toEqual([false, true]);
 
-    const receipts = await prisma.receipt.count({
-      where: { lotId: lot.id },
-    });
+      const settlements = await prisma.settlement.count({
+        where: { lotId: lot.id },
+      });
 
-    const debits = await prisma.walletTransaction.count({
-      where: { lotId: lot.id, type: "AUCTION_DEBIT" },
-    });
+      const receipts = await prisma.receipt.count({
+        where: { lotId: lot.id },
+      });
 
-    const credits = await prisma.walletTransaction.count({
-      where: { lotId: lot.id, type: "AUCTION_CREDIT" },
-    });
-
-    expect(settlements).toBe(1);
-    expect(receipts).toBe(1);
-    expect(debits).toBe(1);
-    expect(credits).toBe(1);
-  });
-
-  it("deve preservar créditos ao liquidar lotes diferentes simultaneamente", async () => {
-    const lotA = await createLot();
-    const lotB = await createLot();
-
-    await createWinningBid(lotA.id);
-    await createWinningBid(lotB.id);
-
-    const auctioneerBefore = await prisma.wallet.findUnique({
-      where: { userId: auctioneerId },
-    });
-
-    const balanceBefore = auctioneerBefore?.totalCents ?? 0n;
-
-    const winnerBefore = await prisma.wallet.findUniqueOrThrow({
-      where: { userId: bidderId },
-    });
-
-    const responses = await Promise.all([
-      settle(lotA.id),
-      settle(lotB.id),
-    ]);
-
-    expect(responses.map((r) => r.status).sort()).toEqual([200, 200]);
-    expect(responses.every((r) => r.body.alreadySettled === false)).toBe(true);
-
-    const auctioneerAfter = await prisma.wallet.findUniqueOrThrow({
-      where: { userId: auctioneerId },
-    });
-
-    const winnerAfter = await prisma.wallet.findUniqueOrThrow({
-      where: { userId: bidderId },
-    });
-
-    expect(auctioneerAfter.totalCents).toBe(balanceBefore + 20000n);
-    expect(winnerAfter.totalCents).toBe(winnerBefore.totalCents - 20000n);
-    expect(winnerAfter.committedCents).toBe(winnerBefore.committedCents - 20000n);
-
-    const ids = [lotA.id, lotB.id];
-
-    expect(
-      await prisma.settlement.count({
-        where: { lotId: { in: ids } },
-      }),
-    ).toBe(2);
-
-    expect(
-      await prisma.receipt.count({
-        where: { lotId: { in: ids } },
-      }),
-    ).toBe(2);
-
-    expect(
-      await prisma.walletTransaction.count({
+      const debits = await prisma.walletTransaction.count({
         where: {
-          lotId: { in: ids },
+          lotId: lot.id,
           type: "AUCTION_DEBIT",
         },
-      }),
-    ).toBe(2);
+      });
 
-    expect(
-      await prisma.walletTransaction.count({
+      const credits = await prisma.walletTransaction.count({
         where: {
-          lotId: { in: ids },
+          lotId: lot.id,
           type: "AUCTION_CREDIT",
         },
-      }),
-    ).toBe(2);
+      });
 
-    const savedLots = await prisma.lot.findMany({
-      where: { id: { in: ids } },
-    });
+      expect(settlements).toBe(1);
+      expect(receipts).toBe(1);
+      expect(debits).toBe(1);
+      expect(credits).toBe(1);
+    },
+  );
 
-    expect(savedLots).toHaveLength(2);
-    expect(savedLots.every((lot) => lot.status === "ENDED")).toBe(true);
-  });
+  it(
+    "deve preservar créditos ao liquidar lotes diferentes simultaneamente",
+    async () => {
+      const lotA = await createLot();
+      const lotB = await createLot();
+
+      await createWinningBid(lotA.id);
+      await createWinningBid(lotB.id);
+
+      const auctioneerBefore = await prisma.wallet.findUnique({
+        where: { userId: auctioneerId },
+      });
+
+      const balanceBefore =
+        auctioneerBefore?.totalCents ?? 0n;
+
+      const winnerBefore = await prisma.wallet.findUniqueOrThrow({
+        where: { userId: bidderId },
+      });
+
+      const responses = await Promise.all([
+        settle(lotA.id),
+        settle(lotB.id),
+      ]);
+
+      expect(
+        responses.map((response) => response.status).sort(),
+      ).toEqual([200, 200]);
+
+      expect(
+        responses.every(
+          (response) =>
+            response.body.alreadySettled === false,
+        ),
+      ).toBe(true);
+
+      const auctioneerAfter = await prisma.wallet.findUniqueOrThrow({
+        where: { userId: auctioneerId },
+      });
+
+      const winnerAfter = await prisma.wallet.findUniqueOrThrow({
+        where: { userId: bidderId },
+      });
+
+      expect(auctioneerAfter.totalCents).toBe(
+        balanceBefore + 20000n,
+      );
+
+      expect(winnerAfter.totalCents).toBe(
+        winnerBefore.totalCents - 20000n,
+      );
+
+      expect(winnerAfter.committedCents).toBe(
+        winnerBefore.committedCents - 20000n,
+      );
+
+      const ids = [lotA.id, lotB.id];
+
+      expect(
+        await prisma.settlement.count({
+          where: {
+            lotId: { in: ids },
+          },
+        }),
+      ).toBe(2);
+
+      expect(
+        await prisma.receipt.count({
+          where: {
+            lotId: { in: ids },
+          },
+        }),
+      ).toBe(2);
+
+      expect(
+        await prisma.walletTransaction.count({
+          where: {
+            lotId: { in: ids },
+            type: "AUCTION_DEBIT",
+          },
+        }),
+      ).toBe(2);
+
+      expect(
+        await prisma.walletTransaction.count({
+          where: {
+            lotId: { in: ids },
+            type: "AUCTION_CREDIT",
+          },
+        }),
+      ).toBe(2);
+
+      const savedLots = await prisma.lot.findMany({
+        where: {
+          id: { in: ids },
+        },
+      });
+
+      expect(savedLots).toHaveLength(2);
+      expect(
+        savedLots.every((lot) => lot.status === "ENDED"),
+      ).toBe(true);
+    },
+  );
+
+  it(
+    "não deve alterar saldo, lote ou comprovante quando outro leiloeiro tenta liquidar",
+    async () => {
+      const lot = await createLot();
+      await createWinningBid(lot.id);
+
+      const walletBefore =
+        await prisma.wallet.findUniqueOrThrow({
+          where: { userId: bidderId },
+        });
+
+      const response = await settle(
+        lot.id,
+        otherAuctioneerToken,
+      );
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe(
+        "Você não é responsável por este lote.",
+      );
+
+      const savedLot =
+        await prisma.lot.findUniqueOrThrow({
+          where: { id: lot.id },
+        });
+
+      expect(savedLot.status).toBe("LIVE");
+      expect(savedLot.currentBidCents).toBe(10000n);
+
+      const walletAfter =
+        await prisma.wallet.findUniqueOrThrow({
+          where: { userId: bidderId },
+        });
+
+      expect(walletAfter.totalCents).toBe(
+        walletBefore.totalCents,
+      );
+
+      expect(walletAfter.committedCents).toBe(
+        walletBefore.committedCents,
+      );
+
+      expect(
+        await prisma.settlement.count({
+          where: { lotId: lot.id },
+        }),
+      ).toBe(0);
+
+      expect(
+        await prisma.receipt.count({
+          where: { lotId: lot.id },
+        }),
+      ).toBe(0);
+
+      expect(
+        await prisma.walletTransaction.count({
+          where: {
+            lotId: lot.id,
+            type: {
+              in: ["AUCTION_DEBIT", "AUCTION_CREDIT"],
+            },
+          },
+        }),
+      ).toBe(0);
+
+      const authorizedResponse = await settle(lot.id);
+
+      expect(authorizedResponse.status).toBe(200);
+      expect(
+        authorizedResponse.body.alreadySettled,
+      ).toBe(false);
+    },
+  );
 });

@@ -47,12 +47,14 @@ function serializeSettlement(
   };
 }
 
-export async function settleLot(lotId: string) {
+export async function settleLot(
+  lotId: string,
+  auctioneerId: string,
+) {
   return prisma.$transaction(
     async (tx) => {
-      // O mesmo bloqueio usado pelo motor de lances.
-      // Impede que um lance e um encerramento modifiquem
-      // simultaneamente o mesmo lote.
+      // Serializa operações concorrentes sobre o lote.
+      // É o mesmo bloqueio usado pelo motor de lances.
       const lots = await tx.$queryRaw<LockedLot[]>`
         SELECT
           id,
@@ -68,10 +70,24 @@ export async function settleLot(lotId: string) {
       const lot = lots[0];
 
       if (!lot) {
-        throw new SettlementError(404, "Lote não encontrado.");
+        throw new SettlementError(
+          404,
+          "Lote não encontrado.",
+        );
       }
 
-      // Uma liquidação concluída nunca deve ser executada novamente.
+      // A autorização faz parte da regra de negócio
+      // e ocorre dentro da transação, após o bloqueio.
+      if (lot.auctioneerId !== auctioneerId) {
+        throw new SettlementError(
+          403,
+          "Você não é responsável por este lote.",
+        );
+      }
+
+      // Verifica idempotência somente após autorização.
+      // Um leiloeiro não pode consultar liquidações
+      // de lotes pertencentes a outro usuário.
       const existing = await tx.settlement.findUnique({
         where: { lotId },
       });
@@ -97,14 +113,19 @@ export async function settleLot(lotId: string) {
         );
       }
 
-      const clock = await tx.$queryRaw<Array<{ now: Date }>>`
+      // Obtém o horário após adquirir o bloqueio.
+      const clock = await tx.$queryRaw<
+        Array<{ now: Date }>
+      >`
         SELECT clock_timestamp() AS now
       `;
 
       const now = clock[0]?.now;
 
       if (!now) {
-        throw new Error("Falha ao consultar o relógio do banco.");
+        throw new Error(
+          "Falha ao consultar o relógio do banco.",
+        );
       }
 
       if (now < lot.endsAt) {
@@ -116,9 +137,13 @@ export async function settleLot(lotId: string) {
 
       const winningBid = await tx.bid.findFirst({
         where: { lotId },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        orderBy: [
+          { createdAt: "desc" },
+          { id: "desc" },
+        ],
       });
 
+      // Liquidação de lote sem lances.
       if (!winningBid) {
         if (lot.currentBidCents !== null) {
           throw new SettlementError(
@@ -163,8 +188,7 @@ export async function settleLot(lotId: string) {
         );
       }
 
-      // Cria a carteira do leiloeiro, se ainda não existir.
-      // A chave única userId evita duplicação.
+      // Garante a existência da carteira do leiloeiro.
       await tx.wallet.upsert({
         where: { userId: lot.auctioneerId },
         update: {},
@@ -175,7 +199,7 @@ export async function settleLot(lotId: string) {
         },
       });
 
-      // Bloqueia as carteiras em ordem determinística.
+      // Bloqueia carteiras em ordem determinística.
       const userIds = [
         winningBid.bidderId,
         lot.auctioneerId,
@@ -208,11 +232,13 @@ export async function settleLot(lotId: string) {
       }
 
       const winnerWallet = wallets.find(
-        (wallet) => wallet.userId === winningBid.bidderId,
+        (wallet) =>
+          wallet.userId === winningBid.bidderId,
       );
 
       const auctioneerWallet = wallets.find(
-        (wallet) => wallet.userId === lot.auctioneerId,
+        (wallet) =>
+          wallet.userId === lot.auctioneerId,
       );
 
       if (!winnerWallet || !auctioneerWallet) {
@@ -234,13 +260,17 @@ export async function settleLot(lotId: string) {
         );
       }
 
-      if (auctioneerWallet.totalCents > MAX_BIGINT - amount) {
+      if (
+        auctioneerWallet.totalCents >
+        MAX_BIGINT - amount
+      ) {
         throw new SettlementError(
           409,
           "O crédito excede o limite da carteira do leiloeiro.",
         );
       }
 
+      // Debita o vencedor e libera sua reserva.
       await tx.wallet.update({
         where: { id: winnerWallet.id },
         data: {
@@ -258,6 +288,7 @@ export async function settleLot(lotId: string) {
         },
       });
 
+      // Credita o leiloeiro.
       await tx.wallet.update({
         where: { id: auctioneerWallet.id },
         data: {
@@ -274,6 +305,7 @@ export async function settleLot(lotId: string) {
         },
       });
 
+      // Registra a liquidação.
       const settlement = await tx.settlement.create({
         data: {
           lotId,
@@ -282,11 +314,13 @@ export async function settleLot(lotId: string) {
         },
       });
 
+      // Emite o comprovante público.
       await tx.receipt.create({
         data: {
           lotId,
           publicToken: randomBytes(24).toString("hex"),
-          winnerAlias: `Participante-${winningBid.bidderId.slice(0, 8)}`,
+          winnerAlias:
+            `Participante-${winningBid.bidderId.slice(0, 8)}`,
           amountCents: amount,
         },
       });
@@ -302,7 +336,8 @@ export async function settleLot(lotId: string) {
       };
     },
     {
-      isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+      isolationLevel:
+        Prisma.TransactionIsolationLevel.ReadCommitted,
       timeout: 15000,
     },
   );

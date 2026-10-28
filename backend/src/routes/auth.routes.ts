@@ -1,21 +1,25 @@
 import { Router } from "express";
 import type { Request, RequestHandler } from "express";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
 
-import { prisma } from "../lib/prisma.js";
-import { signAccessToken } from "../lib/auth.js";
 import { requireAuth } from "../middlewares/auth.js";
+
 import {
   clearRefreshCookie,
   readRefreshCookie,
   setRefreshCookie,
 } from "../lib/refresh-cookie.js";
+
 import {
-  createRefreshSession,
+  getAuthenticatedUser,
+  InvalidCredentialsError,
+  loginUser,
+  logoutUser,
+  refreshUserSession,
+} from "../services/auth.service.js";
+
+import {
   InvalidRefreshSessionError,
-  revokeRefreshSession,
-  rotateRefreshSession,
 } from "../services/session.service.js";
 
 export const authRoutes = Router();
@@ -24,13 +28,6 @@ const loginSchema = z.object({
   email: z.email(),
   password: z.string().min(1),
 });
-
-const USER_SELECT = {
-  id: true,
-  name: true,
-  email: true,
-  role: true,
-} as const;
 
 function allowedFrontendOrigin(): string {
   const frontendUrl =
@@ -47,15 +44,23 @@ function isAllowedOrigin(req: Request): boolean {
   }
 
   try {
-    return new URL(origin).origin === allowedFrontendOrigin();
+    return (
+      new URL(origin).origin === allowedFrontendOrigin()
+    );
   } catch {
     return false;
   }
 }
 
-// Rotas que usam o cookie de refresh exigem uma
-// origem conhecida. Isso ajuda a impedir CSRF.
-const requireTrustedOrigin: RequestHandler = (req, res, next) => {
+/**
+ * Rotas que utilizam refresh cookie exigem
+ * uma origem conhecida para reduzir o risco de CSRF.
+ */
+const requireTrustedOrigin: RequestHandler = (
+  req,
+  res,
+  next,
+) => {
   if (!isAllowedOrigin(req)) {
     res.status(403).json({
       error: "Origem da requisição não autorizada.",
@@ -66,6 +71,9 @@ const requireTrustedOrigin: RequestHandler = (req, res, next) => {
   next();
 };
 
+/**
+ * POST /auth/login
+ */
 authRoutes.post("/login", async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
 
@@ -76,53 +84,38 @@ authRoutes.post("/login", async (req, res) => {
     return;
   }
 
-  const { email, password } = parsed.data;
-
   try {
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
+    const result = await loginUser(
+      parsed.data.email,
+      parsed.data.password,
+    );
 
-    if (
-      !user ||
-      !(await bcrypt.compare(password, user.passwordHash))
-    ) {
-      res.status(401).json({
-        error: "Credenciais inválidas.",
-      });
-      return;
-    }
-
-    const accessToken = signAccessToken({
-      sub: user.id,
-      role: user.role,
-    });
-
-    // O refresh token não aparece no JSON.
-    // Ele é entregue apenas pelo cookie HttpOnly.
-    const refreshToken = await createRefreshSession(user.id);
-
-    setRefreshCookie(res, refreshToken);
+    setRefreshCookie(res, result.refreshToken);
 
     res.setHeader("Cache-Control", "no-store");
 
     res.json({
-      accessToken,
+      accessToken: result.accessToken,
       tokenType: "Bearer",
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: result.user,
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof InvalidCredentialsError) {
+      res.status(401).json({
+        error: error.message,
+      });
+      return;
+    }
+
     res.status(500).json({
       error: "Não foi possível autenticar.",
     });
   }
 });
 
+/**
+ * POST /auth/refresh
+ */
 authRoutes.post(
   "/refresh",
   requireTrustedOrigin,
@@ -137,19 +130,14 @@ authRoutes.post(
     }
 
     try {
-      const result = await rotateRefreshSession(token);
-
-      const accessToken = signAccessToken({
-        sub: result.user.id,
-        role: result.user.role,
-      });
+      const result = await refreshUserSession(token);
 
       setRefreshCookie(res, result.refreshToken);
 
       res.setHeader("Cache-Control", "no-store");
 
       res.json({
-        accessToken,
+        accessToken: result.accessToken,
         tokenType: "Bearer",
         user: result.user,
       });
@@ -170,6 +158,9 @@ authRoutes.post(
   },
 );
 
+/**
+ * POST /auth/logout
+ */
 authRoutes.post(
   "/logout",
   requireTrustedOrigin,
@@ -177,9 +168,7 @@ authRoutes.post(
     const token = readRefreshCookie(req);
 
     try {
-      if (token) {
-        await revokeRefreshSession(token);
-      }
+      await logoutUser(token ?? undefined);
 
       clearRefreshCookie(res);
 
@@ -194,29 +183,30 @@ authRoutes.post(
   },
 );
 
-authRoutes.get("/me", requireAuth, async (_req, res) => {
-  const auth = res.locals.auth as {
-    sub: string;
-    role: "AUCTIONEER" | "BIDDER";
-  };
+/**
+ * GET /auth/me
+ */
+authRoutes.get(
+  "/me",
+  requireAuth,
+  async (_req, res) => {
+    try {
+      const user = await getAuthenticatedUser(
+        res.locals.auth.sub,
+      );
 
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: auth.sub },
-      select: USER_SELECT,
-    });
+      if (!user) {
+        res.status(401).json({
+          error: "Usuário não encontrado.",
+        });
+        return;
+      }
 
-    if (!user) {
-      res.status(401).json({
-        error: "Usuário não encontrado.",
+      res.json({ user });
+    } catch {
+      res.status(500).json({
+        error: "Não foi possível consultar o usuário.",
       });
-      return;
     }
-
-    res.json({ user });
-  } catch {
-    res.status(500).json({
-      error: "Não foi possível consultar o usuário.",
-    });
-  }
-});
+  },
+);

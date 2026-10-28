@@ -9,6 +9,111 @@ export class ExternalProductNotFoundError extends Error {
   }
 }
 
+export const publicLotSelect = {
+  id: true,
+  title: true,
+  description: true,
+  imageUrl: true,
+  startingBidCents: true,
+  minIncrementCents: true,
+  currentBidCents: true,
+  startsAt: true,
+  endsAt: true,
+  status: true,
+  createdAt: true,
+} as const;
+
+function serializeLot<
+  T extends {
+    startingBidCents: bigint;
+    minIncrementCents: bigint;
+    currentBidCents: bigint | null;
+  },
+>(lot: T) {
+  return {
+    ...lot,
+    startingBidCents: lot.startingBidCents.toString(),
+    minIncrementCents: lot.minIncrementCents.toString(),
+    currentBidCents: lot.currentBidCents?.toString() ?? null,
+  };
+}
+
+/**
+ * Consulta o catálogo público.
+ * Lotes cancelados não aparecem na listagem.
+ */
+export async function listPublicLots() {
+  const lots = await prisma.lot.findMany({
+    where: {
+      status: { not: "CANCELLED" },
+    },
+    select: publicLotSelect,
+    orderBy: {
+      endsAt: "asc",
+    },
+  });
+
+  return lots.map(serializeLot);
+}
+
+/**
+ * Consulta os lotes pertencentes ao leiloeiro.
+ * Inclui os dados da liquidação, quando existente.
+ */
+export async function listAuctioneerLots(
+  auctioneerId: string,
+) {
+  const lots = await prisma.lot.findMany({
+    where: {
+      auctioneerId,
+    },
+    select: {
+      ...publicLotSelect,
+      settlement: {
+        select: {
+          id: true,
+          winnerId: true,
+          amountCents: true,
+          settledAt: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return lots.map((lot) => ({
+    ...serializeLot(lot),
+    settlement: lot.settlement
+      ? {
+          ...lot.settlement,
+          amountCents:
+            lot.settlement.amountCents?.toString() ?? null,
+        }
+      : null,
+  }));
+}
+
+/**
+ * Consulta um lote público pelo identificador.
+ * Retorna null quando não existir ou estiver cancelado.
+ */
+export async function getPublicLot(lotId: string) {
+  const lot = await prisma.lot.findFirst({
+    where: {
+      id: lotId,
+      status: { not: "CANCELLED" },
+    },
+    select: publicLotSelect,
+  });
+
+  return lot ? serializeLot(lot) : null;
+}
+
+/**
+ * Cria um lote manual ou importado do catálogo externo.
+ */
 export async function createLot(
   auctioneerId: string,
   input: CreateLotInput,
@@ -33,7 +138,9 @@ export async function createLot(
   } as const;
 
   if ("sourceItemId" in input) {
-    const product = await getExternalProduct(input.sourceItemId);
+    const product = await getExternalProduct(
+      input.sourceItemId,
+    );
 
     if (!product) {
       throw new ExternalProductNotFoundError();
@@ -72,19 +179,4 @@ export async function createLot(
   });
 
   return serializeLot(lot);
-}
-
-function serializeLot<
-  T extends {
-    startingBidCents: bigint;
-    minIncrementCents: bigint;
-    currentBidCents: bigint | null;
-  },
->(lot: T) {
-  return {
-    ...lot,
-    startingBidCents: lot.startingBidCents.toString(),
-    minIncrementCents: lot.minIncrementCents.toString(),
-    currentBidCents: lot.currentBidCents?.toString() ?? null,
-  };
 }
