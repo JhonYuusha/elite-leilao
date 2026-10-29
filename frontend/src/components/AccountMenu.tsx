@@ -1,4 +1,5 @@
 import {
+  Gavel,
   LayoutDashboard,
   LogIn,
   LogOut,
@@ -17,49 +18,52 @@ export function AccountMenu() {
   const { user, isLoading } = useAuth();
   const handleLogout = useLogout();
 
-  if (isLoading) {
-    return null;
-  }
+  if (isLoading) return null;
 
   if (!user) {
     return (
-      <Link
-        to={ROUTES.LOGIN}
-        className="account-login"
-      >
+      <Link to={ROUTES.LOGIN} className="account-login">
         <LogIn size={16} />
         ENTRAR
       </Link>
     );
   }
 
-  const isAuctioneer = user.role === USER_ROLES.AUCTIONEER;
+  const isAuctioneer =
+    user.role === USER_ROLES.AUCTIONEER;
 
   return (
     <div className="account-menu">
       <div className="account-identity">
         <UserRound size={17} />
-
         <div>
           <strong>{user.name}</strong>
           <span>
-            {isAuctioneer
-              ? "LEILOEIRO"
-              : "PARTICIPANTE"}
+            {isAuctioneer ? "LEILOEIRO" : "PARTICIPANTE"}
           </span>
         </div>
       </div>
 
-      {isAuctioneer && (
-        <Link
-          to={ROUTES.AUCTIONEER_DASHBOARD}
-          className="account-dashboard"
-          title="Acessar painel do leiloeiro"
-        >
+      <Link
+        to={
+          isAuctioneer
+            ? ROUTES.AUCTIONEER_DASHBOARD
+            : ROUTES.MY_BIDS
+        }
+        className="account-dashboard"
+        title={
+          isAuctioneer
+            ? "Acessar painel do leiloeiro"
+            : "Consultar meus arremates"
+        }
+      >
+        {isAuctioneer ? (
           <LayoutDashboard size={16} />
-          PAINEL
-        </Link>
-      )}
+        ) : (
+          <Gavel size={16} />
+        )}
+        {isAuctioneer ? "PAINEL" : "MEUS ARREMATES"}
+      </Link>
 
       <button
         type="button"

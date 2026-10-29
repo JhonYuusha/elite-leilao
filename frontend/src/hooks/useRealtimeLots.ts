@@ -20,8 +20,24 @@ export function useRealtimeLots(lotId?: string) {
         return;
       }
 
+      // Atualiza os dados principais do lote.
       void queryClient.invalidateQueries({
         queryKey: ["lot", event.lotId],
+      });
+
+      // Atualiza o histórico público de lances.
+      void queryClient.invalidateQueries({
+        queryKey: ["lot-bid-history", event.lotId],
+      });
+
+      // Atualiza a auditoria criptográfica pública.
+      void queryClient.invalidateQueries({
+        queryKey: ["lot-audit", event.lotId],
+      });
+
+      // Atualiza a posição privada do participante.
+      void queryClient.invalidateQueries({
+        queryKey: ["my-bids"],
       });
     };
 
@@ -35,8 +51,21 @@ export function useRealtimeLots(lotId?: string) {
       if (lotId) {
         socket.emit("lot:join", lotId);
 
+        // Sincroniza o lote ao conectar ou reconectar.
         void queryClient.invalidateQueries({
           queryKey: ["lot", lotId],
+        });
+
+        void queryClient.invalidateQueries({
+          queryKey: ["lot-bid-history", lotId],
+        });
+
+        void queryClient.invalidateQueries({
+          queryKey: ["lot-audit", lotId],
+        });
+
+        void queryClient.invalidateQueries({
+          queryKey: ["my-bids"],
         });
       } else {
         void queryClient.invalidateQueries({

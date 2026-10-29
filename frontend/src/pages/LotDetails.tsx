@@ -8,6 +8,12 @@ import { useLot } from "../hooks/useLot";
 import { useNow } from "../hooks/useNow";
 import { useRealtimeLots } from "../hooks/useRealtimeLots";
 import type { Lot } from "../types/lot";
+import { AuctionCountdown } from "../components/bids/AuctionCountdown";
+import { BidHistory } from "../components/bids/BidHistory";
+import { BidPosition } from "../components/bids/BidPosition";
+import { LotAudit } from "../components/audit/LotAudit";
+
+import "../styles/components/BidHistory.css";
 
 function formatMoney(cents: string): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -140,11 +146,19 @@ export function LotDetails() {
                   </div>
                 </div>
 
-                <WalletPanel />
+                <AuctionCountdown lot={lot} />
+
+               <BidPosition lotId={lot.id} />
+
+                   <WalletPanel />
 
                 <BidPanel lot={lot} />
 
-                <div className="detail-notice">
+                <BidHistory lotId={lot.id} />
+
+                <LotAudit lotId={lot.id} />
+
+               <div className="detail-notice">
                   <Clock3 size={19} />
 
                   <p>

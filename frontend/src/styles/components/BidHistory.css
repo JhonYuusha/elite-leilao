@@ -1,0 +1,238 @@
+.auction-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 24px;
+}
+
+.auction-section-heading > svg {
+  color: #b99b6b;
+}
+
+.auction-section-heading span {
+  color: #a18a67;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+
+.auction-section-heading h2 {
+  margin: 5px 0 0;
+  font-size: 18px;
+  letter-spacing: -0.5px;
+}
+
+/* Contagem regressiva */
+
+.auction-countdown {
+  padding: 25px;
+  margin: 22px 0;
+  background: #1b1b1b;
+  color: #fff;
+}
+
+.auction-countdown-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #d4b47e;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.auction-countdown-time {
+  display: block;
+  margin: 17px 0;
+  font-size: clamp(34px, 5vw, 52px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+}
+
+.auction-countdown p {
+  margin: 0;
+  color: #b5b0a7;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.auction-countdown-urgent {
+  border-left: 4px solid #d2a158;
+}
+
+.auction-countdown-urgent .auction-countdown-time {
+  color: #e6ba78;
+}
+
+.auction-countdown-ended {
+  background: #e9e6e0;
+  color: #66615a;
+}
+
+.auction-countdown-ended .auction-countdown-heading,
+.auction-countdown-ended p {
+  color: #77716a;
+}
+
+/* Posição privada do participante */
+
+.auction-position {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 20px;
+  margin: 20px 0;
+  background: #f0eee9;
+  border: 1px solid #e3ded5;
+  color: #554e43;
+  font-size: 12px;
+}
+
+.auction-position > svg {
+  flex-shrink: 0;
+}
+
+.auction-position strong {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+}
+
+.auction-position p {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.auction-position small {
+  color: #77716a;
+}
+
+.auction-position-positive {
+  background: #e8f0e7;
+  border-color: #c5d9c3;
+  color: #32683d;
+}
+
+.auction-position-outbid {
+  background: #f8eee7;
+  border-color: #e8d2c0;
+  color: #995d32;
+}
+
+/* Histórico público */
+
+.auction-bid-history {
+  margin-top: 26px;
+  padding: 26px;
+  background: #fff;
+  border: 1px solid #e5e0d7;
+}
+
+.auction-history-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eeeae4;
+  color: #77716a;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+}
+
+.auction-history-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.auction-history-entry {
+  padding: 19px 0;
+  border-bottom: 1px solid #eeeae4;
+}
+
+.auction-history-entry.is-leading {
+  border-left: 3px solid #b99b6b;
+  padding-left: 15px;
+}
+
+.auction-history-entry-top,
+.auction-history-entry-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.auction-history-entry-top strong {
+  font-size: 13px;
+}
+
+.auction-history-leader {
+  color: #997744;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.auction-history-value {
+  display: block;
+  margin: 12px 0;
+  font-size: 22px;
+  color: #1b1b1b;
+}
+
+.auction-history-entry-bottom {
+  color: #888178;
+  font-size: 11px;
+}
+
+.auction-history-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 19px 0 0;
+  color: #77716a;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.auction-history-note svg {
+  flex-shrink: 0;
+}
+
+.auction-feedback {
+  padding: 20px;
+  background: #f8f7f4;
+  color: #77716a;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.auction-feedback button {
+  padding: 10px 14px;
+  border: 0;
+  background: #1b1b1b;
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .auction-bid-history {
+    padding: 18px;
+  }
+
+  .auction-history-summary {
+    flex-direction: column;
+  }
+
+  .auction-countdown {
+    padding: 20px;
+  }
+}

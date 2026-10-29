@@ -9,7 +9,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test:watch": "vitest",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "settle:expired": "tsx scripts/settle-expired.ts"
   },
   "keywords": [],
   "author": "",

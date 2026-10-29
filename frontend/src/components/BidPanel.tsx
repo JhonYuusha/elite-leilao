@@ -1,6 +1,9 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import axios from "axios";
 import { ArrowUpRight, Gavel } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -15,7 +18,11 @@ import { formatCents, toCents } from "../utils/money";
 
 import "../styles/components/BidPanel.css";
 
-export function BidPanel({ lot }: { lot: Lot }) {
+interface BidPanelProps {
+  lot: Lot;
+}
+
+export function BidPanel({ lot }: BidPanelProps) {
   const { user } = useAuth();
   const now = useNow();
   const queryClient = useQueryClient();
@@ -28,9 +35,10 @@ export function BidPanel({ lot }: { lot: Lot }) {
     ? BigInt(lot.currentBidCents)
     : null;
 
-  const minimumBid = currentBid === null
-    ? BigInt(lot.startingBidCents)
-    : currentBid + BigInt(lot.minIncrementCents);
+  const minimumBid =
+    currentBid === null
+      ? BigInt(lot.startingBidCents)
+      : currentBid + BigInt(lot.minIncrementCents);
 
   const isLive =
     lot.status === LOT_STATUS.LIVE &&
@@ -40,9 +48,10 @@ export function BidPanel({ lot }: { lot: Lot }) {
 
   const mutation = useMutation({
     mutationFn: async (amountCents: string) => {
-      const { data } = await api.post(`/lots/${lot.id}/bids`, {
-        amountCents,
-      });
+      const { data } = await api.post(
+        `/lots/${encodeURIComponent(lot.id)}/bids`,
+        { amountCents },
+      );
 
       return data;
     },
@@ -52,15 +61,31 @@ export function BidPanel({ lot }: { lot: Lot }) {
       setError("");
       setSuccess("Lance registrado com sucesso!");
 
+      // Atualiza todas as consultas afetadas pelo lance.
+      // Não depende exclusivamente do evento WebSocket.
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["lot", lot.id],
         }),
+
         queryClient.invalidateQueries({
           queryKey: ["lots"],
         }),
+
         queryClient.invalidateQueries({
           queryKey: ["wallet"],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ["lot-bid-history", lot.id],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ["lot-audit", lot.id],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ["my-bids"],
         }),
       ]);
     },
@@ -80,8 +105,22 @@ export function BidPanel({ lot }: { lot: Lot }) {
         setError("Ocorreu um erro inesperado.");
       }
 
+      // Em caso de conflito, outro participante pode
+      // ter registrado um lance antes desta requisição.
       void queryClient.invalidateQueries({
         queryKey: ["lot", lot.id],
+      });
+
+      void queryClient.invalidateQueries({
+        queryKey: ["lot-bid-history", lot.id],
+      });
+
+      void queryClient.invalidateQueries({
+        queryKey: ["lot-audit", lot.id],
+      });
+
+      void queryClient.invalidateQueries({
+        queryKey: ["my-bids"],
       });
     },
   });
@@ -93,7 +132,9 @@ export function BidPanel({ lot }: { lot: Lot }) {
     setSuccess("");
 
     if (!isLive) {
-      setError("Este lote não está disponível para novos lances.");
+      setError(
+        "Este lote não está disponível para novos lances.",
+      );
       return;
     }
 
@@ -110,13 +151,17 @@ export function BidPanel({ lot }: { lot: Lot }) {
 
     if (amountBigInt < minimumBid) {
       setError(
-        `O lance mínimo é ${formatCents(minimumBid.toString())}.`,
+        `O lance mínimo é ${formatCents(
+          minimumBid.toString(),
+        )}.`,
       );
       return;
     }
 
     if (amountBigInt > 9223372036854775807n) {
-      setError("O valor informado ultrapassa o limite permitido.");
+      setError(
+        "O valor informado ultrapassa o limite permitido.",
+      );
       return;
     }
 
@@ -132,6 +177,7 @@ export function BidPanel({ lot }: { lot: Lot }) {
 
       <div className="bid-panel-minimum">
         <span>PRÓXIMO LANCE MÍNIMO</span>
+
         <strong>
           {formatCents(minimumBid.toString())}
         </strong>
@@ -149,7 +195,9 @@ export function BidPanel({ lot }: { lot: Lot }) {
 
           <Link
             to={ROUTES.LOGIN}
-            state={{ from: lotDetailsPath(lot.id) }}
+            state={{
+              from: lotDetailsPath(lot.id),
+            }}
           >
             ENTRAR PARA DAR UM LANCE
             <ArrowUpRight size={17} />
@@ -157,7 +205,8 @@ export function BidPanel({ lot }: { lot: Lot }) {
         </div>
       ) : user.role !== USER_ROLES.BIDDER ? (
         <p className="bid-panel-message">
-          Contas de leiloeiro não podem participar das disputas.
+          Contas de leiloeiro não podem participar
+          das disputas.
         </p>
       ) : (
         <form
@@ -174,19 +223,35 @@ export function BidPanel({ lot }: { lot: Lot }) {
             inputMode="decimal"
             placeholder="Ex.: 550,00"
             value={amount}
-            onChange={(event) => setAmount(event.target.value)}
+            onChange={(event) => {
+              setAmount(event.target.value);
+
+              if (error) {
+                setError("");
+              }
+
+              if (success) {
+                setSuccess("");
+              }
+            }}
             disabled={mutation.isPending}
             required
           />
 
           {error && (
-            <p className="bid-panel-error" role="alert">
+            <p
+              className="bid-panel-error"
+              role="alert"
+            >
               {error}
             </p>
           )}
 
           {success && (
-            <p className="bid-panel-success" role="status">
+            <p
+              className="bid-panel-success"
+              role="status"
+            >
               {success}
             </p>
           )}
@@ -203,9 +268,9 @@ export function BidPanel({ lot }: { lot: Lot }) {
           </button>
 
           <p className="bid-panel-note">
-            O valor do lance será reservado na sua carteira
-            simulada. Caso outro participante supere sua oferta,
-            a reserva será liberada.
+            O valor do lance será reservado na sua
+            carteira simulada. Caso outro participante
+            supere sua oferta, a reserva será liberada.
           </p>
         </form>
       )}

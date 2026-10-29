@@ -8,8 +8,11 @@ import { lotRoutes } from "./routes/lot.routes.js";
 import { productRoutes } from "./routes/product.routes.js";
 import { walletRoutes } from "./routes/wallet.routes.js";
 import { bidRoutes } from "./routes/bid.routes.js";
+import { bidHistoryRoutes } from "./routes/bid-history.routes.js";
 import { settlementRoutes } from "./routes/settlement.routes.js";
 import { receiptRoutes } from "./routes/receipt.routes.js";
+import { lotBidHistoryRoutes } from "./routes/lot-bid-history.routes.js";
+import { lotAuditRoutes } from "./routes/lot-audit.routes.js";
 
 export const app = express();
 
@@ -17,7 +20,9 @@ app.disable("x-powered-by");
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL ?? "http://localhost:5173",
+    origin:
+      process.env.FRONTEND_URL ??
+      "http://localhost:5173",
     credentials: true,
   }),
 );
@@ -25,8 +30,11 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 
 app.use("/auth", authRoutes);
+app.use("/bids", bidHistoryRoutes);
 app.use("/lots", bidRoutes);
 app.use("/lots", settlementRoutes);
+app.use("/lots", lotBidHistoryRoutes);
+app.use("/lots", lotAuditRoutes);
 app.use("/lots", lotRoutes);
 app.use("/products", productRoutes);
 app.use("/wallet", walletRoutes);
