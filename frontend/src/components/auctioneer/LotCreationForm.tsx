@@ -8,9 +8,11 @@ import {
   apiErrorMessage,
   createLot,
 } from "../../services/lots.service";
+import type { ExternalProduct } from "../../services/product-search.service";
 import { toIso } from "../../utils/auction";
 import { toCents } from "../../utils/money";
 import { LotPreview } from "./LotPreview";
+import { ProductSearch } from "./ProductSearch";
 
 type CreationMode = "manual" | "import";
 
@@ -22,7 +24,8 @@ export function LotCreationForm() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState("");
-  const [sourceItemId, setSourceItemId] = useState("");
+  const [selectedProduct, setSelectedProduct] =
+    useState<ExternalProduct | null>(null);
   const [startingBid, setStartingBid] = useState("");
   const [minIncrement, setMinIncrement] = useState("");
   const [startsAt, setStartsAt] = useState("");
@@ -35,6 +38,10 @@ export function LotCreationForm() {
     onSuccess: async (lot) => {
       await queryClient.invalidateQueries({
         queryKey: ["lots"],
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["auctioneer-lots"],
       });
 
       navigate(`/lotes/${lot.id}`);
@@ -51,13 +58,18 @@ export function LotCreationForm() {
   });
 
   function changeMode(nextMode: CreationMode) {
+    if (createMutation.isPending) return;
+
     setMode(nextMode);
+    setSelectedProduct(null);
     setError("");
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+
+    if (createMutation.isPending) return;
 
     const startingBidCents = toCents(startingBid);
     const minIncrementCents = toCents(minIncrement);
@@ -92,16 +104,14 @@ export function LotCreationForm() {
     };
 
     if (mode === "import") {
-      const id = Number(sourceItemId);
-
-      if (!Number.isSafeInteger(id) || id <= 0) {
-        setError("Informe um ID válido do produto externo.");
+      if (!selectedProduct) {
+        setError("Selecione um produto do catálogo externo.");
         return;
       }
 
       createMutation.mutate({
         ...common,
-        sourceItemId: id,
+        sourceItemId: selectedProduct.id,
         ...(imageUrl.trim()
           ? { imageUrl: imageUrl.trim() }
           : {}),
@@ -127,6 +137,16 @@ export function LotCreationForm() {
     });
   }
 
+  const previewTitle =
+    mode === "import"
+      ? selectedProduct?.title ?? ""
+      : title;
+
+  const previewImage =
+    mode === "import"
+      ? imageUrl.trim() || selectedProduct?.thumbnail || ""
+      : imageUrl;
+
   return (
     <div className="auctioneer-layout">
       <form
@@ -142,6 +162,8 @@ export function LotCreationForm() {
           <button
             type="button"
             className={mode === "manual" ? "active" : ""}
+            aria-pressed={mode === "manual"}
+            disabled={createMutation.isPending}
             onClick={() => changeMode("manual")}
           >
             CADASTRO MANUAL
@@ -150,6 +172,8 @@ export function LotCreationForm() {
           <button
             type="button"
             className={mode === "import" ? "active" : ""}
+            aria-pressed={mode === "import"}
+            disabled={createMutation.isPending}
             onClick={() => changeMode("import")}
           >
             IMPORTAR PRODUTO
@@ -190,26 +214,18 @@ export function LotCreationForm() {
           </>
         ) : (
           <>
-            <label htmlFor="auction-source-id">
-              ID DO PRODUTO NO DUMMYJSON
-            </label>
-
-            <input
-              id="auction-source-id"
-              type="number"
-              min="1"
-              step="1"
-              value={sourceItemId}
-              onChange={(event) =>
-                setSourceItemId(event.target.value)
-              }
-              placeholder="Ex.: 1"
-              required
+            <ProductSearch
+              selectedProduct={selectedProduct}
+              onSelect={(product) => {
+                setSelectedProduct(product);
+                setError("");
+              }}
             />
 
             <p className="auctioneer-hint">
-              O nome, a descrição e a imagem serão importados
-              automaticamente do catálogo externo.
+              O nome, a descrição e a imagem do produto
+              selecionado serão importados automaticamente
+              do catálogo externo na publicação.
             </p>
           </>
         )}
@@ -318,15 +334,15 @@ export function LotCreationForm() {
         </button>
 
         <p className="auctioneer-hint">
-          Os valores são simulados. A publicação será realizada
-          imediatamente após a confirmação.
+          Os valores são simulados. A publicação será
+          realizada imediatamente após a confirmação.
         </p>
       </form>
 
       <LotPreview
         mode={mode}
-        title={title}
-        imageUrl={imageUrl}
+        title={previewTitle}
+        imageUrl={previewImage}
         startingBid={startingBid}
       />
     </div>
