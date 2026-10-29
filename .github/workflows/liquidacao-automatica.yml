@@ -26,6 +26,7 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.SETTLEMENT_DATABASE_URL }}
       NODE_ENV: production
+      EXTERNAL_SETTLEMENT: "true"
 
     steps:
       - name: Obter código
@@ -54,6 +55,39 @@ jobs:
 
       - name: Gerar cliente Prisma
         run: npx prisma generate
+
+      - name: Diagnosticar conexão PostgreSQL
+        run: |
+          node --input-type=module <<'EOF'
+          import pg from "pg";
+
+          const url = new URL(process.env.DATABASE_URL);
+
+          console.log("Protocolo:", url.protocol);
+          console.log("Porta:", url.port || "5432");
+          console.log("Banco configurado:", Boolean(url.pathname.slice(1)));
+          console.log("Usuário configurado:", Boolean(url.username));
+          console.log("SSL mode:", url.searchParams.get("sslmode") ?? "não especificado");
+
+          const client = new pg.Client({
+            connectionString: process.env.DATABASE_URL,
+            connectionTimeoutMillis: 10000,
+          });
+
+          try {
+            await client.connect();
+            const result = await client.query(
+              "SELECT current_database() AS database_name, current_user AS user_name"
+            );
+            console.log("Conexão estabelecida:", result.rows[0]);
+          } catch (error) {
+            console.error("Código PostgreSQL:", error.code ?? "indisponível");
+            console.error("Mensagem:", error.message);
+            process.exitCode = 1;
+          } finally {
+            await client.end().catch(() => {});
+          }
+          EOF
 
       - name: Processar lotes vencidos
         run: npm run settle:expired
