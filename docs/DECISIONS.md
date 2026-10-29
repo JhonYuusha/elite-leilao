@@ -1,15 +1,15 @@
 # ÁUREO — Registro de Decisões Técnicas
 
 **Projeto:** ÁUREO — Plataforma de Leilões Online
-**Última revisão:** 28/10/2026
+**Última revisão:** 29/10/2026
 **Desenvolvimento:** João Victor
-**Status geral:** Implementação local validada; implantação pública pendente.
+**Status geral:** Implementação publicada; revisão final de entrega em andamento.
 
 Este documento registra as decisões arquiteturais adotadas no ÁUREO, suas justificativas, garantias, limitações e oportunidades de evolução.
 
-Os status representam o estado da implementação em 28/10/2026, considerando o código da branch `main` e as validações executadas.
+Os status refletem as implementações e validações registradas até 29/10/2026.
 
----dis
+---
 
 ## ADR-001 — Arquitetura e separação de responsabilidades
 
@@ -152,7 +152,7 @@ Falhas na publicação não desfazem alterações já persistidas.
 
 ## ADR-005 — Histórico auditável de lances
 
-**Status:** Implementação parcial.
+**Status:** Implementada e testada, com limitação criptográfica documentada.
 
 ### Decisão
 
@@ -181,12 +181,12 @@ Um agente com controle completo sobre o banco pode reescrever registros e recalc
 
 ### Evolução futura
 
-- Verificação independente da cadeia.
+- Ancoragem externa independente da cadeia.
 - Assinaturas digitais.
 - Ancoragem externa.
 - Publicação de referências criptográficas confiáveis.
 
-Não apresentar a implementação atual como uma auditoria pública criptograficamente imutável.
+A verificação pública está disponível em `GET /lots/:id/audit`, com detecção de alterações, links ausentes, bifurcações e ciclos. Não apresentar a implementação como prova independente de imutabilidade.
 
 ---
 
@@ -248,7 +248,7 @@ A liquidação deve preservar a consistência financeira mesmo diante de requisi
 
 ### Limitação
 
-Não existe um mecanismo automático de recuperação de liquidações pendentes confirmado na implementação atual.
+A recuperação periódica de lotes expirados é executada por GitHub Actions via `npm run settle:expired`, além da liquidação manual. O workflow executou com sucesso; a ocorrência de uma liquidação efetiva disparada por ele ainda deve ser conferida nos registros.
 
 ---
 
@@ -265,7 +265,7 @@ Não existe um mecanismo automático de recuperação de liquidações pendentes
 
 ### Resultado registrado em 28/10/2026
 
-**110 testes aprovados em 13 suítes de backend.**
+**127 testes aprovados em 17 arquivos de teste do backend**, conforme última execução registrada.
 
 ### Funcionalidades cobertas
 
@@ -287,6 +287,8 @@ Não existe um mecanismo automático de recuperação de liquidações pendentes
 - Comprovantes.
 - Socket.IO.
 - Isolamento de eventos privados.
+- Auditoria e ordenação da cadeia de hashes.
+- Histórico de lances e arremates.
 
 ### Validações adicionais
 
@@ -458,6 +460,10 @@ Permitir a importação de metadados de produtos do DummyJSON.
 
 O cadastro manual de lotes não depende da disponibilidade da API externa.
 
+### Interface de seleção
+
+A busca por nome na DummyJSON é realizada pelo frontend, com seleção visual e prévia. Na criação do lote, o backend consulta novamente o item e valida os metadados, evitando confiar no conteúdo apresentado pelo navegador.
+
 ### Limitação
 
 Não há mecanismo avançado de cache, fila ou circuit breaker confirmado.
@@ -492,7 +498,7 @@ A existência de um comprovante público não equivale a uma assinatura digital 
 
 ## ADR-015 — Documentação e implantação
 
-**Status:** Documentação atualizada; implantação pendente.
+**Status:** Implantação realizada; documentação em atualização.
 
 ### Decisão
 
@@ -519,24 +525,64 @@ Manter a documentação alinhada à implementação real.
 
 ### Observação
 
-Não declarar a implantação concluída antes da validação do ambiente público.
+Frontend na Vercel, API e PostgreSQL no Render, com validação manual de lances em tempo real, reservas e liquidação. A revisão final de credenciais e lote ao vivo permanece necessária.
 
 ---
+
+
+---
+
+## ADR-016 — Catálogo público e estados temporais
+
+**Status:** Implementada.
+
+O catálogo separa lotes ao vivo, agendados e encerrados, com busca textual e contagem por categoria. A interface calcula o estado efetivo considerando `startsAt` e `endsAt`; lotes cancelados são omitidos do catálogo público. A decisão de aceitar lances permanece exclusivamente no backend.
+
+---
+
+## ADR-017 — Arremates e comprovantes compartilháveis
+
+**Status:** Implementada.
+
+O endpoint `GET /bids/mine` agrega participações por lote e informa situação, maior lance do usuário e comprovante quando existente. O comprovante pode ser consultado publicamente por token aleatório em `GET /receipts/:token`, sem expor identidade privada do vencedor.
+
+---
+
+## ADR-018 — Liquidação automática por agendamento externo
+
+**Status:** Workflow executado com sucesso; efeito em lote expirado ainda sujeito a verificação.
+
+Um workflow do GitHub Actions roda periodicamente e sob acionamento manual, usando `SETTLEMENT_DATABASE_URL` em GitHub Secrets e `EXTERNAL_SETTLEMENT=true` para a conexão PostgreSQL externa. O job executa `npm run settle:expired` e depende da idempotência do serviço de liquidação para evitar dupla movimentação. Testes não devem apontar para o banco de produção.
+
+---
+
+## ADR-019 — Busca visual DummyJSON com revalidação no servidor
+
+**Status:** Implementada e verificada manualmente.
+
+O leiloeiro pesquisa e seleciona produtos com miniatura no frontend. O backend reconsulta o produto selecionado por ID e armazena um snapshot validado; título, imagem e descrição exibidos no cliente não são aceitos como fonte de verdade. O cadastro manual permanece disponível.
+
+---
+
+## ADR-020 — Otimização de bundle como melhoria posterior
+
+**Status:** Decisão de priorização.
+
+O build de produção e o ESLint do frontend passaram. O Vite emitiu aviso não bloqueante porque o bundle principal minificado ultrapassou 500 kB (547,76 kB; 167,65 kB gzip na execução registrada). Optou-se por não introduzir divisão de código às vésperas da entrega; avaliar lazy loading por rota posteriormente.
 
 ## Pendências priorizadas
 
 ### Prioridade imediata
 
-1. Implantar frontend, backend e banco PostgreSQL.
-2. Revisar cookies e CORS conforme os domínios escolhidos.
-3. Validar login, renovação e logout em produção.
-4. Validar lances simultâneos e Socket.IO no ambiente hospedado.
-5. Validar liquidação e comprovantes públicos.
-6. Preparar uma demonstração reproduzível para o avaliador.
+1. Confirmar acesso às três contas demonstrativas e um lote efetivamente ao vivo.
+2. Conferir resultado financeiro e comprovante em produção.
+3. Finalizar README, arquitetura e registro de decisões.
+4. Revisão humana final e submissão do desafio.
 
 ### Melhorias posteriores
 
-- Implementar recuperação automática de liquidações pendentes.
+- Confirmar por logs uma liquidação efetiva realizada pelo agendador.
+- Otimizar o bundle do frontend com code splitting, se necessário.
 - Fortalecer a auditoria com ancoragem externa.
 - Ampliar testes automatizados do frontend.
 - Avaliar desempenho e acessibilidade.
@@ -547,20 +593,20 @@ Não declarar a implantação concluída antes da validação do ambiente públi
 
 ## Estado de validação
 
-**Revisão:** 28/10/2026.
+**Revisão:** 29/10/2026.
 
 | Verificação | Resultado |
 |---|---|
 | Backend — build | Aprovado |
-| Backend — testes | 110/110 |
-| Backend — suítes | 13/13 |
+| Backend — testes | 127/127 |
+| Backend — suítes | 17 arquivos aprovados |
 | Frontend — build | Aprovado |
 | Frontend — ESLint | Aprovado |
-| Git — último commit funcional | `ce3c155` |
+| Git — último commit funcional | Consultar `git log -1 --oneline` antes da entrega |
 
-Os testes automatizados demonstram o funcionamento dos cenários cobertos, mas não substituem uma auditoria externa de segurança.
+Os testes automatizados demonstram o funcionamento dos cenários cobertos, mas não substituem uma auditoriaexterna de segurança.
 
-A implantação pública permanece pendente de homologação.
+A implantação pública foi realizada; a homologação final está em andamento.
 
 ---
 

@@ -1,9 +1,9 @@
 # ÁUREO — Arquitetura Técnica
 
-**Versão documental:** 1.0
-**Última revisão:** 28/10/2026
+**Versão documental:** 1.1
+**Última revisão:** 29/10/2026
 **Desenvolvedor:** João Victor
-**Status:** Implementação local validada; implantação pública pendente
+**Status:** Frontend e backend implantados; homologação final em andamento
 **Projeto:** ÁUREO — Plataforma de Leilões Online
 
 ## 1. Visão geral
@@ -309,7 +309,7 @@ Lotes cancelados não aparecem no catálogo público.
 
 O encerramento financeiro é realizado por uma operação explícita de liquidação.
 
-Não existe mecanismo automático de recuperação de liquidações pendentes confirmado na implementação atual.
+Existe um job de liquidação automática periódica executado pelo GitHub Actions, além da rota manual. A execução do workflow foi validada; a confirmação de uma liquidação efetiva disparada pelo agendador ainda depende de observação de lote expirado.
 
 ## 11. Liquidação financeira
 
@@ -371,6 +371,10 @@ Cada lance registra:
 - Hash atual.
 
 O hash atual é calculado a partir dos dados do lance e da referência ao registro anterior.
+
+### Verificação pública
+
+O endpoint `GET /lots/:id/audit` recompõe e verifica a cadeia, sinalizando divergências nos hashes, referências quebradas, bifurcações, ciclos e inconsistências com o lance atual. O histórico público `GET /lots/:id/bids` exibe lances com aliases sem divulgar identificadores privados.
 
 ### Limitação
 
@@ -456,7 +460,7 @@ A integração utiliza:
 - Tratamento de falhas externas.
 - Persistência de um snapshot dos metadados relevantes.
 
-O cadastro manual de lotes permanece disponível quando a API externa não está acessível.
+O frontend permite pesquisar produtos por nome, visualizar miniaturas e selecionar um item. Na criação, o backend consulta novamente o produto por ID, valida a resposta e persiste um snapshot; a interface não é a fonte de verdade dos metadados. O cadastro manual permanece disponível quando a API externa não está acessível.
 
 ## 17. Interface e experiência do usuário
 
@@ -470,6 +474,12 @@ Entre os elementos implementados estão:
 - `WalletPanel`.
 - `LotCard`.
 - Formulários e painéis de gerenciamento de lotes.
+- `ProductSearch` para seleção visual de itens da DummyJSON.
+- `LotCatalog` com busca, contagens e seções ao vivo, agendadas e encerradas.
+- `AuctionCountdown`, `BidPosition` e `BidHistory`.
+- `LotAudit` com verificação pública da integridade.
+- `MyBids` para acompanhamento de participações e arremates.
+- `PublicReceipt` e compartilhamento de comprovantes.
 
 Os estilos são organizados em:
 
@@ -501,16 +511,18 @@ O backend utiliza Vitest e Supertest.
 - Liquidação e idempotência.
 - Comprovantes.
 - Socket.IO e isolamento de sessões.
+- Auditoria pública, integridade e ordenação da cadeia de hashes.
+- Histórico público de lances e acompanhamento de arremates.
 
 ### Validação registrada
 
-Em 28/10/2026:
+Última execução registrada em 28/10/2026:
 
 | Verificação | Resultado |
 |---|---|
 | Backend — build | Aprovado |
-| Backend — testes | 110/110 aprovados |
-| Suítes de backend | 13/13 aprovadas |
+| Backend — testes | 127/127 aprovados |
+| Suítes de backend | 17/17 arquivos aprovados |
 | Frontend — build | Aprovado |
 | Frontend — ESLint | Aprovado |
 | Git — diff check | Aprovado no commit anterior |
@@ -555,9 +567,9 @@ A variável `VITE_API_URL` permite configurar o endereço da API.
 
 ## 20. Implantação
 
-A implantação pública ainda está pendente de validação.
+O frontend está hospedado na Vercel e o backend e PostgreSQL no Render. A aplicação foi testada com dois participantes em tempo real, incluindo reservas e liquidação. A homologação final das contas e do lote ativo deve ser concluída antes da entrega.
 
-Será necessário configurar:
+A implantação envolve:
 
 1. Banco PostgreSQL acessível ao backend.
 2. Migrações de produção.
@@ -570,16 +582,21 @@ Será necessário configurar:
 9. Validação dos fluxos de lances e liquidação.
 10. URLs públicas na documentação.
 
-As credenciais de desenvolvimento não devem ser reutilizadas em produção.
+As credenciais de desenvolvimento não devem ser reutilizadas em produção. O seed de produção cria contas de demonstração com credenciais distintas; a redefinição de senhas deve ser feita fora do repositório.
+
+### Liquidação agendada
+
+O workflow `.github/workflows/liquidacao-automatica.yml` executa `npm run settle:expired` periodicamente e permite execução manual. A conexão externa usa `SETTLEMENT_DATABASE_URL` armazenada como secret do GitHub e `EXTERNAL_SETTLEMENT=true` para a configuração SSL. O job deve ser idempotente e não deve usar o banco de produção em testes automatizados.
 
 ## 21. Limitações conhecidas
 
 - Os saldos são simulados.
 - A auditoria ainda não possui ancoragem externa.
-- Não há recuperação automática de liquidações confirmada.
+- A execução do job automático foi validada; a liquidação efetiva de um lote expirado pelo agendador ainda precisa de verificação específica.
 - O seed não cria lances iniciais.
-- O deploy público ainda precisa ser homologado.
+- O deploy público está disponível, com revisão final das contas e do lote ativo pendente.
 - A cobertura automatizada do frontend pode ser ampliada.
+- O bundle de produção do Vite apresenta aviso não bloqueante acima de 500 kB; divisão por rotas é melhoria futura.
 - Existem arquivos vazios reservados para possíveis evoluções arquiteturais.
 
 ## 22. Conclusão
@@ -588,4 +605,4 @@ O ÁUREO possui uma arquitetura orientada à separação de responsabilidades, c
 
 O sistema já dispõe de autenticação, sessões persistentes, lances concorrentes, anti-sniping, carteiras simuladas, comunicação em tempo real e liquidação idempotente.
 
-A próxima etapa é a implantação pública e a validação ponta a ponta do ambiente hospedado.
+A implantação pública foi realizada. A etapa final consiste em validar as credenciais demonstrativas, confirmar um lote ao vivo e atualizar o README para a submissão.
