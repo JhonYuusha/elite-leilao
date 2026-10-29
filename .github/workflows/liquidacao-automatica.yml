@@ -1,4 +1,3 @@
-
 name: Liquidação automática dos leilões
 
 on:
@@ -46,8 +45,12 @@ jobs:
             exit 1
           fi
 
-      - name: Instalar dependências
-        run: npm ci
+      - name: Instalar dependências de execução e compilação
+        run: npm ci --include=dev
+
+      - name: Verificar executável TypeScript
+        run: |
+          npm exec --no -- tsx --version
 
       - name: Gerar cliente Prisma
         run: npx prisma generate
