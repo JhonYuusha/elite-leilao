@@ -1,8 +1,6 @@
-
 import { useState } from "react";
 import {
   ArrowDownRight,
-  ArrowRight,
   ArrowUpRight,
   Gavel,
   Search,
@@ -10,29 +8,25 @@ import {
 import { Link } from "react-router-dom";
 
 import { AccountMenu } from "../components/AccountMenu";
-import { LotCard } from "../components/LotCard";
+import { LotCatalog } from "../components/catalog/LotCatalog";
 import { useLots } from "../hooks/useLots";
 import { useNow } from "../hooks/useNow";
+import { getEffectiveLotStatus } from "../lib/lot-status";
 
 export function Home() {
   const [search, setSearch] = useState("");
-  const { data: lots = [], isLoading, isError, refetch } = useLots();
+  const {
+    data: lots = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useLots();
+
   const now = useNow();
 
-  const filteredLots = lots.filter((lot) =>
-    lot.title.toLocaleLowerCase("pt-BR").includes(
-      search.trim().toLocaleLowerCase("pt-BR"),
-    ),
-  );
-
-  const liveCount = lots.filter((lot) => {
-    if (now === null || lot.status !== "LIVE") return false;
-
-    const startsAt = new Date(lot.startsAt).getTime();
-    const endsAt = new Date(lot.endsAt).getTime();
-
-    return now >= startsAt && now < endsAt;
-  }).length;
+  const liveCount = lots.filter(
+    (lot) => getEffectiveLotStatus(lot, now) === "LIVE",
+  ).length;
 
   return (
     <>
@@ -114,63 +108,22 @@ export function Home() {
           <div className="hero-bottomline">
             <span>
               {liveCount}{" "}
-              {liveCount === 1 ? "LEILÃO AO VIVO" : "LEILÕES AO VIVO"}
+              {liveCount === 1
+                ? "LEILÃO AO VIVO"
+                : "LEILÕES AO VIVO"}
             </span>
             <span>01 / CATÁLOGO</span>
           </div>
         </section>
 
-        <section className="auctions-section" id="leiloes">
-          <div className="section-topline">
-            <span>01 / CATÁLOGO</span>
-            <span>LOTES DISPONÍVEIS</span>
-          </div>
-
-          <div className="catalog-heading">
-            <div>
-              <span className="section-kicker">
-                ACOMPANHE AS DISPUTAS
-              </span>
-
-              <h2>
-                LOTES EM DESTAQUE<span>.</span>
-              </h2>
-            </div>
-
-            <div className="catalog-heading__info">
-              <span>{filteredLots.length} RESULTADO(S)</span>
-              <p>
-                Consulte os valores e os horários de encerramento
-                de cada lote.
-              </p>
-            </div>
-          </div>
-
-          {isLoading ? (
-            <div className="catalog-message" role="status">
-              CARREGANDO CATÁLOGO...
-            </div>
-          ) : isError ? (
-            <div className="catalog-message" role="alert">
-              <p>NÃO FOI POSSÍVEL CARREGAR OS LOTES.</p>
-              <button type="button" onClick={() => void refetch()}>
-                TENTAR NOVAMENTE <ArrowRight size={16} />
-              </button>
-            </div>
-          ) : filteredLots.length === 0 ? (
-            <div className="catalog-message">
-              {search.trim()
-                ? "NENHUM LOTE ENCONTRADO PARA ESSA BUSCA."
-                : "NENHUM LOTE DISPONÍVEL NO MOMENTO."}
-            </div>
-          ) : (
-            <div className="lots-grid">
-              {filteredLots.map((lot) => (
-                <LotCard key={lot.id} lot={lot} now={now} />
-              ))}
-            </div>
-          )}
-        </section>
+        <LotCatalog
+          lots={lots}
+          search={search}
+          now={now}
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={() => void refetch()}
+        />
 
         <section className="how-section" id="como-funciona">
           <div className="section-topline">
@@ -179,7 +132,9 @@ export function Home() {
           </div>
 
           <div className="how-heading">
-            <span className="section-kicker">SIMPLES E DIRETO</span>
+            <span className="section-kicker">
+              SIMPLES E DIRETO
+            </span>
             <h2>DO PRIMEIRO OLHAR AO ÚLTIMO LANCE.</h2>
           </div>
 

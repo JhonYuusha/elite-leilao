@@ -1,15 +1,20 @@
-import {
-  ArrowUpRight,
-  Clock3,
-  ImageOff,
-} from "lucide-react";
+import { ArrowUpRight, Clock3, ImageOff } from "lucide-react";
 import { Link } from "react-router-dom";
+
+import { getEffectiveLotStatus } from "../lib/lot-status";
 import type { Lot } from "../types/lot";
 
 interface LotCardProps {
   lot: Lot;
   now: number | null;
 }
+
+const statusLabels = {
+  LIVE: "AO VIVO",
+  SCHEDULED: "EM BREVE",
+  ENDED: "ENCERRADO",
+  CANCELLED: "CANCELADO",
+} as const;
 
 function formatMoney(cents: string): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -18,24 +23,11 @@ function formatMoney(cents: string): string {
   }).format(Number(cents) / 100);
 }
 
-function getStatus(lot: Lot, now: number | null) {
-  if (lot.status === "ENDED") return "ENCERRADO";
-  if (now === null) return "VERIFICANDO";
-
-  const startsAt = new Date(lot.startsAt).getTime();
-  const endsAt = new Date(lot.endsAt).getTime();
-
-  if (now >= endsAt) return "ENCERRADO";
-  if (now < startsAt || lot.status === "SCHEDULED") {
-    return "EM BREVE";
-  }
-
-  return lot.status === "LIVE" ? "AO VIVO" : "VERIFICANDO";
-}
-
 export function LotCard({ lot, now }: LotCardProps) {
-  const status = getStatus(lot, now);
+  const status = getEffectiveLotStatus(lot, now);
   const price = lot.currentBidCents ?? lot.startingBidCents;
+
+  if (status === "CANCELLED") return null;
 
   return (
     <Link className="lot-card" to={`/lotes/${lot.id}`}>
@@ -50,10 +42,8 @@ export function LotCard({ lot, now }: LotCardProps) {
         )}
 
         <div className="lot-card__status">
-          <span
-            className={status === "AO VIVO" ? "status-dot" : ""}
-          />
-          {status}
+          {status === "LIVE" && <span className="status-dot" />}
+          {status ? statusLabels[status] : "VERIFICANDO"}
         </div>
       </div>
 
