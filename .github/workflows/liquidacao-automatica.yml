@@ -1,0 +1,56 @@
+
+name: Liquidação automática dos leilões
+
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: liquidacao-automatica
+  cancel-in-progress: false
+
+jobs:
+  liquidar:
+    name: Processar leilões encerrados
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      DATABASE_URL: ${{ secrets.SETTLEMENT_DATABASE_URL }}
+      NODE_ENV: production
+
+    steps:
+      - name: Obter código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Validar configuração
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Configure SETTLEMENT_DATABASE_URL nos secrets do repositório."
+            exit 1
+          fi
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar cliente Prisma
+        run: npx prisma generate
+
+      - name: Processar lotes vencidos
+        run: npm run settle:expired
