@@ -320,7 +320,7 @@ export async function settleLot(
           lotId,
           publicToken: randomBytes(24).toString("hex"),
           winnerAlias:
-            `Participante-${winningBid.bidderId.slice(0, 8)}`,
+          `Participante-${randomBytes(8).toString("hex")}`,
           amountCents: amount,
         },
       });

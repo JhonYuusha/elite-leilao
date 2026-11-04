@@ -1,3 +1,4 @@
+
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -302,6 +303,15 @@ describe("Liquidação de leilões", () => {
 
     expect(receipt?.amountCents).toBe(10000n);
     expect(receipt?.publicToken).toMatch(/^[a-f0-9]{48}$/);
+
+    // O pseudônimo não deve derivar do ID interno do vencedor.
+    expect(receipt?.winnerAlias).toMatch(
+      /^Participante-[a-f0-9]{16}$/,
+    );
+
+    expect(receipt?.winnerAlias).not.toContain(
+      bidderId.slice(0, 8),
+    );
   });
 
   it("deve ser idempotente ao liquidar o mesmo lote novamente", async () => {
