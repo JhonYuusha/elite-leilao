@@ -13,6 +13,7 @@ import { settlementRoutes } from "./routes/settlement.routes.js";
 import { receiptRoutes } from "./routes/receipt.routes.js";
 import { lotBidHistoryRoutes } from "./routes/lot-bid-history.routes.js";
 import { lotAuditRoutes } from "./routes/lot-audit.routes.js";
+import { proxyDiagnostic } from "./middlewares/proxy-diagnostic.js";
 
 export const app = express();
 
@@ -44,6 +45,7 @@ app.use(
 
 app.use(express.json({ limit: "1mb" }));
 
+app.get("/internal/proxy-diagnostic", proxyDiagnostic);
 app.use("/auth", authRoutes);
 app.use("/bids", bidHistoryRoutes);
 app.use("/lots", bidRoutes);
