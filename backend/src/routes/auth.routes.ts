@@ -22,6 +22,8 @@ import {
   InvalidRefreshSessionError,
 } from "../services/session.service.js";
 
+import { loginRateLimit } from "../middlewares/login-rate-limit.js";
+
 export const authRoutes = Router();
 
 const loginSchema = z.object({
@@ -74,7 +76,7 @@ const requireTrustedOrigin: RequestHandler = (
 /**
  * POST /auth/login
  */
-authRoutes.post("/login", async (req, res) => {
+authRoutes.post("/login", loginRateLimit, async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
 
   if (!parsed.success) {
