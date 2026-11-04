@@ -16,6 +16,21 @@ import { lotAuditRoutes } from "./routes/lot-audit.routes.js";
 
 export const app = express();
 
+const proxyHopsRaw = process.env.TRUST_PROXY_HOPS ?? "0";
+const proxyHops = Number(proxyHopsRaw);
+
+if (
+  !/^\d+$/.test(proxyHopsRaw) ||
+  !Number.isSafeInteger(proxyHops) ||
+  proxyHops > 10
+) {
+  throw new Error(
+    "TRUST_PROXY_HOPS deve ser um inteiro entre 0 e 10.",
+  );
+}
+
+app.set("trust proxy", proxyHops);
+
 app.disable("x-powered-by");
 
 app.use(
