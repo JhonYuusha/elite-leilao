@@ -14,6 +14,7 @@ import { receiptRoutes } from "./routes/receipt.routes.js";
 import { lotBidHistoryRoutes } from "./routes/lot-bid-history.routes.js";
 import { lotAuditRoutes } from "./routes/lot-audit.routes.js";
 import { proxyDiagnostic } from "./middlewares/proxy-diagnostic.js";
+import { rateLimitDiagnostic } from "./middlewares/rate-limit-diagnostic.js";
 
 export const app = express();
 
@@ -46,6 +47,8 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 
 app.get("/internal/proxy-diagnostic", proxyDiagnostic);
+app.get("/internal/rate-limit-diagnostic", rateLimitDiagnostic)
+app.post("/internal/rate-limit-diagnostic", ...rateLimitDiagnostic);
 app.use("/auth", authRoutes);
 app.use("/bids", bidHistoryRoutes);
 app.use("/lots", bidRoutes);
