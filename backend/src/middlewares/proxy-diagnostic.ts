@@ -1,4 +1,3 @@
-
 import type { RequestHandler } from "express";
 import { timingSafeEqual } from "node:crypto";
 
@@ -32,6 +31,8 @@ export const proxyDiagnostic: RequestHandler = (req, res) => {
     socketIp: req.socket.remoteAddress ?? null,
     expressIp: req.ip ?? null,
     forwardedFor: req.get("X-Forwarded-For") ?? null,
+    cloudflareIp: req.get("CF-Connecting-IP") ?? null,
+    trueClientIp: req.get("True-Client-IP") ?? null,
     forwarded: req.get("Forwarded") ?? null,
     trustedProxyHops: req.app.get("trust proxy"),
   });
