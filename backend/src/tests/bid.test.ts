@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { createHash, randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import {
   afterAll,
   beforeAll,
@@ -284,32 +284,84 @@ describe("Motor de lances", () => {
     expect(second.status).toBe(409);
   });
 
-  it("deve produzir hashes verificáveis", async () => {
+  it("deve produzir hashes HMAC-SHA256 v2 verificáveis e encadeados", async () => {
+    const secret = process.env.BID_AUDIT_HMAC_KEY;
+
+    expect(secret).toBeDefined();
+    expect(secret?.length).toBeGreaterThanOrEqual(32);
+
+    if (!secret) {
+      throw new Error("Chave HMAC de testes não configurada.");
+    }
+
     const lot = await createTestLot();
 
-    const response = await sendBid(
+    const firstResponse = await sendBid(
       lot.id,
       tokenB,
       "10000",
     );
 
-    expect(response.status).toBe(201);
+    expect(firstResponse.status).toBe(201);
 
-    const bid = response.body.bid;
-
-    const payload = JSON.stringify({
-      lotId: lot.id,
-      bidderId: bidderBId,
-      amountCents: "10000",
-      acceptedAt: new Date(bid.createdAt).toISOString(),
-      previousHash: null,
+    const firstBid = await prisma.bid.findFirstOrThrow({
+      where: { lotId: lot.id },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });
 
-    const expectedHash = createHash("sha256")
-      .update(payload)
+    expect(firstBid.hashVersion).toBe(2);
+    expect(firstBid.previousHash).toBeNull();
+
+    const firstPayload = JSON.stringify({
+      lotId: firstBid.lotId,
+      bidderId: firstBid.bidderId,
+      amountCents: firstBid.amountCents.toString(),
+      acceptedAt: firstBid.createdAt.toISOString(),
+      previousHash: firstBid.previousHash,
+    });
+
+    const expectedFirstHash = createHmac("sha256", secret)
+      .update(`aureo:bid:v2:${firstPayload}`)
       .digest("hex");
 
-    expect(bid.hash).toBe(expectedHash);
+    expect(firstBid.hash).toBe(expectedFirstHash);
+    expect(firstResponse.body.bid.hash).toBe(firstBid.hash);
+
+    const secondResponse = await sendBid(
+      lot.id,
+      tokenA,
+      "11000",
+    );
+
+    expect(secondResponse.status).toBe(201);
+
+    const secondBid = await prisma.bid.findFirstOrThrow({
+      where: {
+        lotId: lot.id,
+        bidderId: bidderAId,
+      },
+    });
+
+    expect(secondBid.hashVersion).toBe(2);
+    expect(secondBid.previousHash).toBe(firstBid.hash);
+
+    const secondPayload = JSON.stringify({
+      lotId: secondBid.lotId,
+      bidderId: secondBid.bidderId,
+      amountCents: secondBid.amountCents.toString(),
+      acceptedAt: secondBid.createdAt.toISOString(),
+      previousHash: secondBid.previousHash,
+    });
+
+    const expectedSecondHash = createHmac("sha256", secret)
+      .update(`aureo:bid:v2:${secondPayload}`)
+      .digest("hex");
+
+    expect(secondBid.hash).toBe(expectedSecondHash);
+    expect(secondResponse.body.bid.hash).toBe(secondBid.hash);
+    expect(secondResponse.body.bid.previousHash).toBe(
+      firstBid.hash,
+    );
   });
 
   it("deve prorrogar lote nos últimos dois minutos", async () => {

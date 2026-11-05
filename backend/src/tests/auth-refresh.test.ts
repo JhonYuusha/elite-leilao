@@ -14,8 +14,9 @@ import { prisma } from "../lib/prisma.js";
 
 const EMAIL = `auth-refresh-${randomUUID()}@demo.local`;
 const PASSWORD = "Teste@123456";
-const FRONTEND_ORIGIN =
-  new URL(process.env.FRONTEND_URL ?? "http://localhost:5173").origin;
+const FRONTEND_ORIGIN = new URL(
+  process.env.FRONTEND_URL ?? "http://localhost:5173",
+).origin;
 
 let userId: string;
 
@@ -38,7 +39,13 @@ function getRefreshCookie(
     throw new Error("Cookie de refresh não encontrado.");
   }
 
-  return refreshCookie.split(";")[0];
+  const cookie = refreshCookie.split(";")[0];
+
+  if (cookie === undefined || cookie.length === 0) {
+    throw new Error("Cookie de refresh inválido.");
+  }
+
+  return cookie;
 }
 
 async function login() {
@@ -153,7 +160,10 @@ describe("Autenticação HTTP com refresh cookie", () => {
 
     const response = await request(app)
       .post("/auth/refresh")
-      .set("Origin", "https://origem-nao-autorizada.example")
+      .set(
+        "Origin",
+        "https://origem-nao-autorizada.example",
+      )
       .set("Cookie", getRefreshCookie(firstLogin));
 
     expect(response.status).toBe(403);
@@ -245,12 +255,14 @@ describe("Autenticação HTTP com refresh cookie", () => {
 
     const response = await request(app)
       .post("/auth/logout")
-      .set("Origin", "https://origem-nao-autorizada.example")
+      .set(
+        "Origin",
+        "https://origem-nao-autorizada.example",
+      )
       .set("Cookie", cookie);
 
     expect(response.status).toBe(403);
 
-    // A tentativa bloqueada não deve revogar a sessão.
     const refresh = await request(app)
       .post("/auth/refresh")
       .set("Origin", FRONTEND_ORIGIN)
