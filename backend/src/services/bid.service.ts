@@ -1,6 +1,7 @@
-import { createHash } from "node:crypto";
 import { Prisma } from "../generated/prisma/client.js";
 import { prisma } from "../lib/prisma.js";
+import { BID_HASH_VERSION_HMAC, calculateBidHash,
+} from "./bid-hash.service.js";
 
 const ANTI_SNIPING_MS = 2 * 60 * 1000;
 
@@ -220,19 +221,21 @@ export async function placeBid(
         },
       });
 
+      // Mantém o encadeamento com lances antigos (SHA-256 v1),
+      // mas assina novos lances com HMAC-SHA256 (v2).
       const previousHash = previousBid?.hash ?? null;
+      const hashVersion = BID_HASH_VERSION_HMAC;
 
-      const hashPayload = JSON.stringify({
-        lotId,
-        bidderId,
-        amountCents: amountCents.toString(),
-        acceptedAt: acceptedAt.toISOString(),
-        previousHash,
-      });
-
-      const hash = createHash("sha256")
-        .update(hashPayload)
-        .digest("hex");
+      const hash = calculateBidHash(
+        {
+          lotId,
+          bidderId,
+          amountCents,
+          acceptedAt,
+          previousHash,
+        },
+        hashVersion,
+      );
 
       const bid = await tx.bid.create({
         data: {
@@ -241,6 +244,7 @@ export async function placeBid(
           amountCents,
           previousHash,
           hash,
+          hashVersion,
           createdAt: acceptedAt,
         },
       });
@@ -277,6 +281,7 @@ export async function placeBid(
           amountCents: bid.amountCents.toString(),
           previousHash: bid.previousHash,
           hash: bid.hash,
+          hashVersion: bid.hashVersion,
           createdAt: bid.createdAt,
         },
 

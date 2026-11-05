@@ -1,4 +1,8 @@
-import { createHash } from "node:crypto";
+
+import {
+  calculateBidHash,
+  BID_HASH_VERSION_LEGACY,
+} from "./bid-hash.service.js";
 
 export interface AuditableBid {
   id: string;
@@ -8,6 +12,7 @@ export interface AuditableBid {
   createdAt: Date;
   previousHash: string | null;
   hash: string;
+  hashVersion?: number;
 }
 
 export interface IntegrityResult {
@@ -32,11 +37,10 @@ export function verifyBidIntegrity(
   >();
 
   for (const bid of bids) {
-    const siblings: AuditableBid[] =
+    const siblings =
       byPreviousHash.get(bid.previousHash) ?? [];
 
     siblings.push(bid);
-
     byPreviousHash.set(bid.previousHash, siblings);
   }
 
@@ -46,7 +50,6 @@ export function verifyBidIntegrity(
   let lastHash: string | null = null;
 
   while (true) {
-    // Tipagem explícita para evitar TS7022.
     const candidates: AuditableBid[] =
       byPreviousHash.get(previousHash) ?? [];
 
@@ -77,26 +80,27 @@ export function verifyBidIntegrity(
     visited.add(bid.id);
 
     if (bid.lotId !== lotId) {
-      issues.push(
-        "Um lance pertence a outro lote.",
-      );
+      issues.push("Um lance pertence a outro lote.");
     }
 
-    const payload = JSON.stringify({
-      lotId: bid.lotId,
-      bidderId: bid.bidderId,
-      amountCents: bid.amountCents.toString(),
-      acceptedAt: bid.createdAt.toISOString(),
-      previousHash: bid.previousHash,
-    });
+    try {
+      const expectedHash = calculateBidHash(
+        {
+          lotId: bid.lotId,
+          bidderId: bid.bidderId,
+          amountCents: bid.amountCents,
+          acceptedAt: bid.createdAt,
+          previousHash: bid.previousHash,
+        },
+        bid.hashVersion ?? BID_HASH_VERSION_LEGACY,
+      );
 
-    const expectedHash = createHash("sha256")
-      .update(payload)
-      .digest("hex");
-
-    if (expectedHash !== bid.hash) {
+      if (expectedHash !== bid.hash) {
+        issues.push(`Hash inválido no lance ${bid.id}.`);
+      }
+    } catch {
       issues.push(
-        `Hash inválido no lance ${bid.id}.`,
+        `Não foi possível verificar o hash do lance ${bid.id}.`,
       );
     }
 

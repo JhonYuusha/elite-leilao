@@ -102,6 +102,7 @@ model Bid {
   amountCents  BigInt
   previousHash String?
   hash         String
+  hashVersion  Int      @default(1)
   createdAt    DateTime @default(now())
 
   lot    Lot  @relation(fields: [lotId], references: [id])

@@ -7,5 +7,10 @@ export default defineConfig({
     hookTimeout: 15000,
     maxWorkers: 2,
     fileParallelism: true,
+
+    env: {
+      BID_AUDIT_HMAC_KEY:
+        "aureo-chave-exclusiva-para-testes-hmac-2026-nao-usar-em-producao",
+    },
   },
 });

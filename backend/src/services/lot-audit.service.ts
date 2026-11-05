@@ -22,6 +22,7 @@ export async function getPublicLotAudit(lotId: string) {
           createdAt: true,
           previousHash: true,
           hash: true,
+          hashVersion: true,
         },
       },
     },
@@ -31,16 +32,15 @@ export async function getPublicLotAudit(lotId: string) {
     return null;
   }
 
-  // A verificação usa os dados originais do banco.
-  // Não modifica nem corrige registros inconsistentes.
+  // Verifica os dados originais, incluindo a versão
+  // criptográfica de cada lance.
   const integrity = verifyBidIntegrity(
     lot.id,
     lot.bids,
     lot.currentBidCents,
   );
 
-  // A apresentação segue os elos da cadeia, e não
-  // a ordenação cronológica do banco de dados.
+  // Apresenta os lances na ordem dos elos da cadeia.
   const orderedBids = orderBidsByChain(lot.bids);
 
   return {
@@ -58,6 +58,7 @@ export async function getPublicLotAudit(lotId: string) {
       createdAt: bid.createdAt,
       previousHash: bid.previousHash,
       hash: bid.hash,
+      hashVersion: bid.hashVersion,
     })),
   };
 }
